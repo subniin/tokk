@@ -21,7 +21,8 @@
         "test:quick": "vitest run --reporter dot",
         "check:public-api": "tsx scripts/check-public-api.ts",
         "pbt:quick": "tsx scripts/pbt-quick.ts",
-        "score": "tsx scripts/score.ts"
+        "score": "tsx scripts/score.ts",
+        "mcp": "tsx tools/mcp-ears/server.ts"
     },
     "keywords": [],
     "author": "",
@@ -29,10 +30,12 @@
     "license": "MIT",
     "devDependencies": {
         "@fast-check/vitest": "^0.5.0",
+        "@modelcontextprotocol/sdk": "1.32.2",
         "@types/node": "^26.6.6",
         "fast-check": "^4.10.3",
         "tsx": "^4.23.15",
         "typescript": "^7.0.2",
-        "vitest": "^5.1.1"
+        "vitest": "^5.1.1",
+        "zod": "4.6.7"
     }
 }
