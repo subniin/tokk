@@ -26,6 +26,7 @@ export const SEGMENT_MAX_MS = 1500;
 export const FEATURE_LENGTH = 32;
 export const FEATURE_FRAME_MIN_MS = 20;
 export const FEATURE_HOP_MS = 10;
+export const FEATURE_FFT_WINDOW_MULTIPLE = 2;
 export const MEL_FILTER_COUNT = 26;
 export const MEL_MIN_HZ = 100;
 export const MEL_MAX_HZ = 8000;
@@ -33,6 +34,11 @@ export const MEL_MAX_NYQUIST_FRACTION = 0.45;
 export const MFCC_COUNT = 13;
 export const DECAY_DROP_DB = 20;
 export const BAND_EDGES_HZ = [500, 2000, 5000];
+export const MEL_POWER_FLOOR = 1e-10;
+export const FEATURE_CENTROID_SCALE_HZ = 1000;
+export const FEATURE_DECAY_SCALE_MS = 100;
+export const FEATURE_ATTACK_SCALE_MS = 100;
+export const FEATURE_ZCR_SCALE_PER_S = 1000;
 
 // Classifier
 export const KNN_K = 3;
