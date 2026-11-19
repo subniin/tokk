@@ -78,6 +78,7 @@ export const HUM_END_UNVOICED_MS = 60;
 // Grammar
 export const GAP_CONSECUTIVE_MAX_MS = 350;   // exclusive
 export const GAP_REST_MAX_MS = 1000;         // inclusive
+export const GAP_TOLERANCE_MS = 1e-6;          // rounding allowance for t = samples / sampleRate
 export const HUM_DEADZONE_SEMITONES = 2;
 export const HUM_SPEED_MAX_SEMITONES = 6;
 
