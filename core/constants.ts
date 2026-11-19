@@ -71,6 +71,10 @@ export const HUM_SPEED_MAX_SEMITONES = 6;
 // Synthesis
 export const SYNTH_FADE_OUT_MS = 10;
 export const SYNTH_MAX_DURATION_MS = 400;
+export const SYNTH_BANDWIDTH_FRACTION = 0.5;
+export const SYNTH_DURATION_DECAY_MULTIPLE = 3;
+export const SYNTH_TONE_HARMONICS = 3;
+export const SYNTH_VIBRATO_RATE_HZ = 5;
 
 // Scoring
 export const MATCH_TOLERANCE_MS = 50;
