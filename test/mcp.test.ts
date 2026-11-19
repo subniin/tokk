@@ -39,10 +39,10 @@ afterEach(async () => {
 const timesOf = (text: string): number[] => [...text.matchAll(/@ (\d+\.\d{3})s/g)].map((m) => Number(m[1]));
 
 describe('tool list (Req 1.6)', () => {
-  it('lists exactly listen, score and teach with a description and an input schema', async () => {
+  it('lists exactly listen, score, spectrogram and teach with a description and an input schema', async () => {
     const { client } = await setup();
     const { tools } = await client.listTools();
-    expect(tools.map((t) => t.name).sort()).toEqual(['listen', 'score', 'teach']);
+    expect(tools.map((t) => t.name).sort()).toEqual(['listen', 'score', 'spectrogram', 'teach']);
     for (const t of tools) {
       expect(t.description && t.description.length > 0).toBe(true);
       expect(t.inputSchema.type).toBe('object');
@@ -350,5 +350,116 @@ describe('errors (Req 7)', () => {
     const r = await call(client, 'score', { dir: 'nope', sounds: 'nope.json' });
     expect(r.isError).toBe(true);
     expect(r.text).not.toMatch(STACK_LINE);
+  });
+});
+
+describe('spectrogram (Req 3, 4.3)', () => {
+  const RATE_HZ = 16000;
+  const DURATION_S = 1.5;
+  const EXPECTED_WIDTH_PX = 150;
+  const HEIGHT_PX = 256;
+  const TOO_LONG_S = 61;
+  const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  const TONE_HZ = 1000;
+
+  const tone = (): Float32Array => {
+    const out = new Float32Array(Math.round(DURATION_S * RATE_HZ));
+    for (let i = 0; i < out.length; i++) out[i] = 0.5 * Math.sin(2 * Math.PI * TONE_HZ * (i / RATE_HZ));
+    return out;
+  };
+
+  interface ImageResult { isError: boolean; content: { type: string; data?: string; mimeType?: string; text?: string }[] }
+  async function shoot(client: Connected['client'], args: Record<string, unknown>): Promise<ImageResult> {
+    return (await client.callTool({ name: 'spectrogram', arguments: args })) as unknown as ImageResult;
+  }
+  const decode = (r: ImageResult): Buffer => Buffer.from(r.content[0].data ?? '', 'base64');
+  const widthOf = (png: Buffer): number => png.readUInt32BE(16);
+  const heightOf = (png: Buffer): number => png.readUInt32BE(20);
+
+  it('returns one image item that decodes to a PNG of the expected size', async () => {
+    const { client } = await setup();
+    await putSignal(join(sb.root, 'rec.wav'), tone(), RATE_HZ);
+    const r = await shoot(client, { wav: 'rec.wav' });
+    expect(r.isError).not.toBe(true);
+    expect(r.content.length).toBe(1);
+    expect(r.content[0].type).toBe('image');
+    expect(r.content[0].mimeType).toBe('image/png');
+    const png = decode(r);
+    expect([...png.subarray(0, 8)]).toEqual(PNG_SIGNATURE);
+    expect(widthOf(png)).toBe(EXPECTED_WIDTH_PX);
+    expect(heightOf(png)).toBe(HEIGHT_PX);
+  });
+
+  it('changes the width with startS and endS', async () => {
+    const { client } = await setup();
+    await putSignal(join(sb.root, 'rec.wav'), tone(), RATE_HZ);
+    const r = await shoot(client, { wav: 'rec.wav', startS: 0.5, endS: 1 });
+    expect(widthOf(decode(r))).toBe(50);
+  });
+
+  it('reports an empty range with the duration and the arguments as given', async () => {
+    const { client } = await setup();
+    await putSignal(join(sb.root, 'rec.wav'), tone(), RATE_HZ);
+    const r = await call(client, 'spectrogram', { wav: 'rec.wav', startS: 9, endS: 10 });
+    expect(r.isError).toBe(true);
+    expect(r.text).toContain('no samples in the selected range');
+    expect(r.text).toContain('1.500');
+    expect(r.text).toContain('9');
+    expect(r.text).toContain('10');
+  });
+
+  it('rejects a range longer than the limit and accepts it when narrowed', async () => {
+    const { client } = await setup();
+    await putSignal(join(sb.root, 'long.wav'), new Float32Array(TOO_LONG_S * RATE_HZ), RATE_HZ);
+    const r = await call(client, 'spectrogram', { wav: 'long.wav' });
+    expect(r.isError).toBe(true);
+    expect(r.text).toContain('range is longer than 60 s');
+    expect(r.text).toContain('startS');
+    expect(r.text).toContain('endS');
+    const ok = await shoot(client, { wav: 'long.wav', startS: 0, endS: 2 });
+    expect(ok.isError).not.toBe(true);
+    expect(widthOf(decode(ok))).toBe(200);
+  });
+
+  it('reports a missing file and a 24-bit WAV, and answers the next call', async () => {
+    const { client } = await setup();
+    const missing = await call(client, 'spectrogram', { wav: 'missing.wav' });
+    expect(missing.isError).toBe(true);
+    expect(missing.text).toBe('not found: missing.wav');
+    await writeFile(join(sb.root, 'deep.wav'), wav24Bytes(FIXTURE_SAMPLE_RATE_HZ, WAV_24_FRAMES));
+    const deep = await call(client, 'spectrogram', { wav: 'deep.wav' });
+    expect(deep.isError).toBe(true);
+    expect(deep.text).toContain('16-bit PCM');
+    expect(deep.text).not.toMatch(STACK_LINE);
+    await putSignal(join(sb.root, 'rec.wav'), tone(), RATE_HZ);
+    expect((await shoot(client, { wav: 'rec.wav' })).isError).not.toBe(true);
+  });
+
+  it('rejects wav outside the working folder, in the sibling-prefix folder and behind a link', async (ctx) => {
+    const { client } = await setup();
+    await putSignal(join(sb.parent, 'outside.wav'), tone(), RATE_HZ);
+    await putSignal(join(sb.evil, 'rec.wav'), tone(), RATE_HZ);
+    for (const arg of [join(sb.parent, 'outside.wav'), '../outside.wav', '../tokk-evil/rec.wav']) {
+      const r = await call(client, 'spectrogram', { wav: arg });
+      expect(r.isError).toBe(true);
+      expect(r.text).toContain('outside the working folder');
+    }
+    try {
+      await symlink(sb.evil, join(sb.root, 'link'), 'junction');
+    } catch (e) {
+      ctx.skip(`cannot create a directory link here: ${(e as Error).message}`);
+    }
+    const linked = await call(client, 'spectrogram', { wav: 'link/rec.wav' });
+    expect(linked.isError).toBe(true);
+    expect(linked.text).toContain('outside the working folder');
+  });
+
+  it('writes no file', async () => {
+    const { client } = await setup();
+    await putSignal(join(sb.root, 'rec.wav'), tone(), RATE_HZ);
+    const before = await listTree(sb.parent);
+    await shoot(client, { wav: 'rec.wav' });
+    await call(client, 'spectrogram', { wav: 'nope.wav' });
+    expect(await listTree(sb.parent)).toEqual(before);
   });
 });

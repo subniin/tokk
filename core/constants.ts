@@ -117,6 +117,8 @@ export const SPECTROGRAM_HOP_MS = 10;
 export const SPECTROGRAM_MAX_HZ = 8000;
 export const SPECTROGRAM_HEIGHT_PX = 256;
 export const SPECTROGRAM_FLOOR_DBFS = -90;
+export const SPECTROGRAM_CEILING_DBFS = 0; // level that reads as white
+export const SPECTROGRAM_TOOL_MAX_RANGE_MS = 60000; // longest range the spectrogram tool draws
 
 // Synthetic fixtures and corpus score
 export const SYNTH_FIXTURE_SAMPLE_RATE_HZ = SAMPLE_RATE_MIN_HZ;

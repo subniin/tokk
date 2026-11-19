@@ -4,8 +4,11 @@
 import { stat, writeFile } from 'node:fs/promises';
 import { relative, join, sep } from 'node:path';
 import { z } from 'zod';
+import { SPECTROGRAM_TOOL_MAX_RANGE_MS } from '../../core/constants';
 import { createEngine, type EngineEvent } from '../../core/engine';
+import { renderSpectrogram, spectrogramRange } from '../../core/spectrogram';
 import { readWavFile } from '../../node/files';
+import { encodePng } from '../../node/png';
 import { scoreDir } from '../../node/score';
 import { teachFromDir } from '../../node/teach';
 import { ToolError, withArg } from './errors';
@@ -124,4 +127,32 @@ const score = defineTool({
   },
 });
 
-export const TOOLS: ToolDefinition[] = [teach, listen, score];
+const MS_PER_SECOND = 1000;
+const DURATION_DECIMALS = 3;
+
+const spectrogram = defineTool({
+  name: 'spectrogram',
+  description: 'Draw a WAV recording as a grayscale spectrogram PNG. Times are in seconds. The time axis runs left to right at about 10 ms per pixel, the vertical axis is 0 to 8 kHz with low frequencies at the bottom, and brightness is the level from -90 dB (black) to 0 dB (white). Use startS and endS to zoom into a range.',
+  inputSchema: {
+    wav: z.string().min(1).describe('16-bit PCM WAV recording'),
+    startS: z.number().finite().min(0).optional().describe('Start of the range in seconds. Default: 0'),
+    endS: z.number().finite().min(0).optional().describe('End of the range in seconds. Default: end of the recording'),
+  },
+  async run({ wav, startS, endS }, { guard }) {
+    const wavPath = await guard.resolveExisting('wav', wav);
+    const audio = await withArg(wav, () => readWavFile(wavPath));
+    const { startSample, endSample } = spectrogramRange(audio.samples.length, audio.sampleRate, startS, endS);
+    if (((endSample - startSample) / audio.sampleRate) * MS_PER_SECOND > SPECTROGRAM_TOOL_MAX_RANGE_MS) {
+      throw new ToolError(`range is longer than ${SPECTROGRAM_TOOL_MAX_RANGE_MS / MS_PER_SECOND} s; pass startS and endS`);
+    }
+    const image = renderSpectrogram(audio.samples, audio.sampleRate, { startS, endS });
+    if (image.width === 0) {
+      const duration = (audio.samples.length / audio.sampleRate).toFixed(DURATION_DECIMALS);
+      throw new ToolError(`no samples in the selected range: recording is ${duration} s long, startS ${startS ?? 'not given'}, endS ${endS ?? 'not given'}`);
+    }
+    const png = encodePng(image.width, image.height, image.gray);
+    return [{ type: 'image', data: Buffer.from(png).toString('base64'), mimeType: 'image/png' }];
+  },
+});
+
+export const TOOLS: ToolDefinition[] = [teach, listen, score, spectrogram];
