@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { createEngine, runSamples } from '../core/engine';
 import type { EngineEvent } from '../core/engine';
-import { rng, synthNoise, synthTone } from '../core/synth';
-import type { MatchEvent } from '../core/types';
+import { place, rng, synthNoise, synthTone } from '../core/synth';
+import type { MatchEvent, SoundEvent } from '../core/types';
+import { HUM_END_UNVOICED_MS, HUM_SPEED_MAX_SEMITONES } from '../core/constants';
 import {
   LEAD_MS, TRAIL_MS, buildModel, buildNoisyModel, clip, hitSeed, impactClip, loudestWindowDb, makeSignal,
   type Hit, type ImpactName,
@@ -253,8 +254,142 @@ describe('P1 count preservation, statistical acceptance (Req 15)', () => {
   }, timeout);
 });
 describe('hum paths (Task 6)', () => {
-  it.todo('an impact during an active hum is not classified');
-  it.todo('hum.rise fires through the engine for a rising hum');
-  it.todo('P1 with a hum before the impacts');
-  it.todo('the low class is not taken for a hum (review item 12)');
+  const HUM_GAIN_DB = -12;
+  const HUM_LEAD_MS = LEAD_MS;
+  const HUM_BASELINE_HZ = 150;
+  const HUM_STEADY_F0_HZ = 200;
+  const HUM_MIN_MS = 2500;
+  const HUM_IMPACT_AFTER_MS = 1500;
+  const GLIDE_MS = 2000;
+  const GLIDE_UP_HZ = 300;
+  const GLIDE_DOWN_HZ = 100;
+  const VIBRATO_CENTS = 50;
+  const PRE_HUM_F0_MIN_HZ = 150;
+  const PRE_HUM_F0_MAX_HZ = 350;
+  const PRE_HUM_MS_MIN = 1000;
+  const PRE_HUM_MS_MAX = 2000;
+  const PRE_HUM_GAIN_MIN_DB = -12;
+  const PRE_HUM_GAIN_MAX_DB = 0;
+  const PRE_HUM_NOISE_ONLY_MS = 700;
+  const PRE_HUM_CASE_SEED = 8303;
+  const LOW_SWEEP_GAIN_MIN_DB = -20;
+  const LOW_SWEEP_GAIN_MAX_DB = 6;
+  const LOW_SWEEP_SEEDS = [101, 202, 303, 404];
+  const LOW_SWEEP_SNR_DB = 20;
+  const LOW_SWEEP_EXACT_MIN = 0.98;
+  const MS = 1000;
+
+  const hum = (f0Hz: number, durationMs: number, extra: { vibratoCents?: number; glideToHz?: number } = {}) =>
+    synthTone({ f0Hz, durationMs, gainDb: HUM_GAIN_DB, ...extra }, SR_HZ);
+  const soundEvents = (events: SoundEvent[]) => events.filter((e) => e.kind === 'sound');
+  const risingFalling = ['hum.rise', 'hum.fall'];
+  const pitchModel = () => ({ ...model(), pitch: { baselineHz: HUM_BASELINE_HZ } });
+
+  it('an impact during an active hum is not classified', () => {
+    const impactAtMs = HUM_LEAD_MS + HUM_IMPACT_AFTER_MS;
+    const total = HUM_LEAD_MS + HUM_MIN_MS + TRAIL_MS;
+    const x = clip(place([
+      { atMs: HUM_LEAD_MS, samples: hum(HUM_STEADY_F0_HZ, HUM_MIN_MS) },
+      { atMs: impactAtMs, samples: impactClip('mid', PATTERN_GAIN_DB, SR_HZ, 5) },
+    ], total, SR_HZ));
+    const r = runSamples(x, SR_HZ, model());
+    expect(soundEvents(r.events)).toEqual([]);
+    expect(r.unknowns).toEqual([]);
+    expect(r.events.some((e) => e.kind === 'continuous' && e.phase === 'start')).toBe(true);
+  });
+
+  it('hum.rise fires through the engine for a rising hum', () => {
+    const run = (x: Float32Array) => runSamples(x, SR_HZ, pitchModel(), risingFalling).matches;
+    const line = (f0: number, extra: { vibratoCents?: number; glideToHz?: number }) =>
+      place([{ atMs: HUM_LEAD_MS, samples: hum(f0, GLIDE_MS, extra) }], HUM_LEAD_MS + GLIDE_MS + TRAIL_MS, SR_HZ);
+    const up = run(line(HUM_BASELINE_HZ, { glideToHz: GLIDE_UP_HZ }));
+    expect(up.length).toBeGreaterThan(0);
+    for (const m of up) {
+      expect(m.pattern).toBe('hum.rise');
+      expect(m.speed!).toBeGreaterThan(0);
+      expect(m.speed!).toBeLessThanOrEqual(HUM_SPEED_MAX_SEMITONES);
+    }
+    const down = run(line(HUM_BASELINE_HZ, { glideToHz: GLIDE_DOWN_HZ }));
+    expect(down.length).toBeGreaterThan(0);
+    expect(down.every((m) => m.pattern === 'hum.fall')).toBe(true);
+    expect(run(line(HUM_BASELINE_HZ, {}))).toEqual([]);
+    expect(run(line(HUM_BASELINE_HZ, { vibratoCents: VIBRATO_CENTS }))).toEqual([]);
+  });
+
+  describe('P1 with a hum before the impacts', () => {
+    const cases = PBT_RUNS >= P1_CASES_FULL ? P1_CASES_FULL : P1_CASES_DEFAULT;
+    const timeout = Math.max(TIMEOUT_FLOOR_MS, P1_MS_PER_CASE * cases);
+    const rates = [44100, 48000] as const;
+    const classes: ImpactName[] = ['mid', 'high'];
+
+    it('P1 with a hum before the impacts', () => {
+      const r = rng(PRE_HUM_CASE_SEED);
+      const int = (lo: number, hi: number) => lo + Math.floor(r() * (hi - lo + 1));
+      let exact = 0;
+      let over = 0;
+      let wrongLabel = 0;
+      let missNotUnknown = 0;
+      let humLeak = 0;
+      const failing: string[] = [];
+      for (let k = 0; k < cases; k++) {
+        const c = {
+          rate: rates[int(0, rates.length - 1)], cls: classes[int(0, classes.length - 1)], n: int(1, P1_MAX_IMPACTS),
+          gap: int(P1_GAP_MIN_MS, P1_GAP_MAX_MS), gain: int(P1_GAIN_MIN_DB, P1_GAIN_MAX_DB), snr: int(P1_SNR_MIN_DB, P1_SNR_MAX_DB),
+          seed: int(1, P1_SEED_MAX), humHz: int(PRE_HUM_F0_MIN_HZ, PRE_HUM_F0_MAX_HZ), humMs: int(PRE_HUM_MS_MIN, PRE_HUM_MS_MAX),
+          humGain: int(PRE_HUM_GAIN_MIN_DB, PRE_HUM_GAIN_MAX_DB),
+        };
+        const m = buildNoisyModel(ALL, c.rate, P1_TRAIN_SNR_MIN_DB, P1_TRAIN_SNR_MAX_DB);
+        const quietestDb = Math.min(...Array.from({ length: c.n }, (_, i) => loudestWindowDb(impactClip(c.cls, c.gain, c.rate, hitSeed(c.seed, i)), c.rate)));
+        const firstImpactMs = LEAD_MS + c.humMs + PRE_HUM_NOISE_ONLY_MS;
+        const h = hits(c.cls, Array.from({ length: c.n }, (_, i) => firstImpactMs + i * c.gap), c.gain);
+        const base = makeSignal({ sampleRate: c.rate, totalMs: firstImpactMs + (c.n - 1) * c.gap + P1_IMPACT_SPAN_MS + TRAIL_MS, hits: h, seed: c.seed, noiseRmsDb: quietestDb - c.snr });
+        const tone = synthTone({ f0Hz: c.humHz, durationMs: c.humMs, gainDb: c.humGain }, c.rate);
+        const humAt = Math.round((LEAD_MS * c.rate) / MS);
+        for (let i = 0; i < tone.length; i++) base[humAt + i] += tone[i];
+        const res = runSamples(clip(base), c.rate, m);
+        const labels = soundEvents(res.events).map((e) => (e.kind === 'sound' ? e.label : ''));
+        const leak = res.events.filter((e) => e.kind === 'continuous' && e.t > (firstImpactMs - HUM_END_UNVOICED_MS) / MS).length;
+        if (leak > 0) humLeak++;
+        const wrong = labels.some((l) => l !== c.cls);
+        if (wrong) wrongLabel++;
+        else if (labels.length > c.n) over++;
+        else if (labels.length < c.n) { if (labels.length + res.unknowns.length < c.n) missNotUnknown++; }
+        else exact++;
+        if (failing.length < 3 && (wrong || labels.length !== c.n || leak > 0)) {
+          failing.push(`[${c.rate}, ${c.cls}, N=${c.n}, gap ${c.gap}, gain ${c.gain}, SNR ${c.snr}, seed ${c.seed}, hum ${c.humHz} Hz ${c.humMs} ms ${c.humGain} dB] labels [${labels}], ${res.unknowns.length} unknown, leak ${leak}`);
+        }
+      }
+      const exactRate = exact / cases;
+      const report = `P1 with hum: ${cases} cases, exact ${(exactRate * 100).toFixed(1)} %, over ${over}, wrong label ${wrongLabel}, miss without unknown ${missNotUnknown}, continuous after the hum ${humLeak}` + (failing.length ? `\n  ${failing.join('\n  ')}` : '');
+      console.log(report);
+      expect({ exactOk: exactRate >= P1_EXACT_RATE_MIN, over, wrongLabel, missNotUnknown, humLeak }, report)
+        .toEqual({ exactOk: true, over: 0, wrongLabel: 0, missNotUnknown: 0, humLeak: 0 });
+    }, timeout);
+  });
+
+  it('the low class is not taken for a hum (review item 12)', () => {
+    const m = buildNoisyModel(ALL, SR_HZ, P1_TRAIN_SNR_MIN_DB, P1_TRAIN_SNR_MAX_DB);
+    let cases = 0;
+    let exact = 0;
+    let continuous = 0;
+    let wrongLabel = 0;
+    let missNotUnknown = 0;
+    for (let gain = LOW_SWEEP_GAIN_MIN_DB; gain <= LOW_SWEEP_GAIN_MAX_DB; gain++) {
+      for (const seed of LOW_SWEEP_SEEDS) {
+        cases++;
+        const noiseDb = loudestWindowDb(impactClip('low', gain, SR_HZ, hitSeed(seed, 0)), SR_HZ) - LOW_SWEEP_SNR_DB;
+        const x = clip(makeSignal({ sampleRate: SR_HZ, totalMs: LEAD_MS + P1_IMPACT_SPAN_MS + TRAIL_MS, hits: hits('low', [LEAD_MS], gain), seed, noiseRmsDb: noiseDb }));
+        const r = runSamples(x, SR_HZ, m);
+        continuous += r.events.filter((e) => e.kind === 'continuous').length;
+        const labels = r.events.filter((e) => e.kind === 'sound').map((e) => (e.kind === 'sound' ? e.label : ''));
+        if (labels.some((l) => l !== 'low')) wrongLabel++;
+        else if (labels.length === 1) exact++;
+        else if (labels.length + r.unknowns.length < 1) missNotUnknown++;
+      }
+    }
+    console.log(`low sweep: ${cases} cases, exact ${exact}, continuous events ${continuous}, wrong label ${wrongLabel}, miss without unknown ${missNotUnknown}`);
+    expect(cases).toBe((LOW_SWEEP_GAIN_MAX_DB - LOW_SWEEP_GAIN_MIN_DB + 1) * LOW_SWEEP_SEEDS.length);
+    expect({ exactOk: exact / cases >= LOW_SWEEP_EXACT_MIN, continuous, wrongLabel, missNotUnknown })
+      .toEqual({ exactOk: true, continuous: 0, wrongLabel: 0, missNotUnknown: 0 });
+  }, TIMEOUT_FLOOR_MS);
 });

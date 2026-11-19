@@ -236,15 +236,6 @@ describe('warnings (Req 10, 11)', () => {
     expect(warnings).toEqual(cmp);
   });
 
-  it('skips the hum folder with a warning', async () => {
-    const dir = await classDir(['low', 'mid']);
-    const tone = synthTone({ f0Hz: 200, durationMs: 2000, gainDb: -10 }, SR_HZ);
-    await putFile(dir, 'hum', 'a.wav', place([{ atMs: 0, samples: tone }], 2500, SR_HZ));
-    const { model, report } = await teachFromDir(dir);
-    expect(report.warnings.map((w) => [w.file, w.code])).toEqual([['hum', 'hum-folder-ignored']]);
-    expect(report.labels.map((l) => l.label)).not.toContain('hum');
-    expect(model.pitch).toBeUndefined();
-  });
 });
 
 describe('expectEvents (Req 13)', () => {
@@ -294,5 +285,66 @@ describe('expectEvents (Req 13)', () => {
 });
 
 describe('hum teaching (Task 6)', () => {
-  it.todo('the hum folder sets pitch.baselineHz near the tone frequency');
+  const HUM_MS = 2000;
+  const HUM_FILE_MS = 2500;
+  const HUM_A_HZ = 200;
+  const HUM_B_HZ = 210;
+  const HUM_TOLERANCE_HZ = 3;
+  const HUM_GAIN_DB = -10;
+  const humFile = (hz: number) => place([{ atMs: 0, samples: synthTone({ f0Hz: hz, durationMs: HUM_MS, gainDb: HUM_GAIN_DB }, SR_HZ) }], HUM_FILE_MS, SR_HZ);
+
+  it('the hum folder sets pitch.baselineHz near the tone frequency', async () => {
+    const dir = await classDir(['low', 'mid']);
+    await putFile(dir, 'hum', 'a.wav', humFile(HUM_A_HZ));
+    await putFile(dir, 'hum', 'b.wav', humFile(HUM_B_HZ));
+    const { model, report } = await teachFromDir(dir);
+    expect(Math.abs(model.pitch!.baselineHz - (HUM_A_HZ + HUM_B_HZ) / 2)).toBeLessThan(HUM_TOLERANCE_HZ);
+    expect(report.warnings).toEqual([]);
+    expect(report.labels.map((l) => l.label)).not.toContain('hum');
+    expect(report.confusedPairs.some((p) => p.a === 'hum' || p.b === 'hum')).toBe(false);
+    expect(model.examples.some((e) => e.label === 'hum')).toBe(false);
+    expect(Object.keys(model.pitch!)).toEqual(['baselineHz']);
+  });
+
+  it('warns with no-pitch-found for a hum file of noise and sets no pitch', async () => {
+    const dir = await classDir(['low', 'mid']);
+    await putFile(dir, 'hum', 'noise.wav', synthNoise('white', HUM_FILE_MS, NOISE_DB, SR_HZ, rng(3)));
+    const { model, report } = await teachFromDir(dir);
+    expect(model.pitch).toBeUndefined();
+    expect(report.warnings.map((w) => [w.file, w.code])).toEqual([['hum/noise.wav', 'no-pitch-found']]);
+    expect(report.warnings[0].message).toContain('2 s');
+  });
+
+  it('warns for the file without a hum and uses the others', async () => {
+    const dir = await classDir(['low', 'mid']);
+    await putFile(dir, 'hum', 'a.wav', humFile(HUM_A_HZ));
+    await putFile(dir, 'hum', 'noise.wav', synthNoise('white', HUM_FILE_MS, NOISE_DB, SR_HZ, rng(3)));
+    const { model, report } = await teachFromDir(dir);
+    expect(Math.abs(model.pitch!.baselineHz - HUM_A_HZ)).toBeLessThan(HUM_TOLERANCE_HZ);
+    expect(report.warnings.map((w) => [w.file, w.code])).toEqual([['hum/noise.wav', 'no-pitch-found']]);
+  });
+
+  it('names the hum folder when it holds no file', async () => {
+    const dir = await classDir(['low', 'mid']);
+    await mkdir(join(dir, 'hum'), { recursive: true });
+    const { model, report } = await teachFromDir(dir);
+    expect(model.pitch).toBeUndefined();
+    expect(report.warnings.map((w) => [w.file, w.code])).toEqual([['hum', 'no-pitch-found']]);
+  });
+
+  it('does not count the hum folder toward the minimum', async () => {
+    const dir = await classDir(['low', 'mid']);
+    await putFile(dir, 'hum', 'a.wav', humFile(HUM_A_HZ));
+    await expect(teachFromDir(dir)).resolves.toBeDefined();
+    const dir2 = await newDir();
+    await putFile(dir2, 'hum', 'a.wav', humFile(HUM_A_HZ));
+    await expect(teachFromDir(dir2)).rejects.toBeInstanceOf(TooFewExamplesError);
+  });
+
+  it('builds an engine with hum.rise from the taught model', async () => {
+    const dir = await classDir(['low', 'mid']);
+    await putFile(dir, 'hum', 'a.wav', humFile(HUM_A_HZ));
+    const { model } = await teachFromDir(dir);
+    expect(() => runSamples(new Float32Array(SR_HZ), SR_HZ, model, ['hum.rise'])).not.toThrow();
+  });
 });

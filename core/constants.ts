@@ -89,6 +89,9 @@ export const HUM_END_UNVOICED_MS = 60;
 export const GAP_CONSECUTIVE_MAX_MS = 350;   // exclusive
 export const GAP_REST_MAX_MS = 1000;         // inclusive
 export const GAP_TOLERANCE_MS = 1e-6;          // rounding allowance for t = samples / sampleRate
+export const PITCH_MAX_STEP_SEMITONES = 1;      // largest pitch change between two hops of a voiced run, in semitones; E5 knob
+// Quality factor of the 2nd-order pitch filters, unitless: 1 / sqrt(2) is a Butterworth response.
+export const PITCH_FILTER_Q = Math.SQRT1_2;
 export const HUM_DEADZONE_SEMITONES = 2;
 export const HUM_SPEED_MAX_SEMITONES = 6;
 

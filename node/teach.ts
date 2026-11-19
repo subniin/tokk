@@ -14,6 +14,7 @@ import {
   MIN_EXAMPLES_PER_LABEL,
   NOISE_FLOOR_WARMUP_MS,
 } from '../core/constants';
+import { medianPitchHz } from '../core/continuous/pitch';
 import { Segmenter } from '../core/segment';
 import type { Segment, SoundModel } from '../core/types';
 import { readWavFile } from './files';
@@ -25,7 +26,7 @@ const HUM_FOLDER = 'hum';
 
 export type TeachWarning = {
   file: string;
-  code: 'shorter-than-calibration' | 'sound-in-calibration' | 'no-sound-found' | 'hum-folder-ignored';
+  code: 'shorter-than-calibration' | 'sound-in-calibration' | 'no-sound-found' | 'no-pitch-found';
   message: string;
 };
 
@@ -167,6 +168,35 @@ function looReport(model: SoundModel, labels: string[]): Pick<TeachReport, 'labe
   };
 }
 
+function median(values: number[]): number {
+  const v = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(v.length / 2);
+  return v.length % 2 === 1 ? v[mid] : (v[mid - 1] + v[mid]) / 2;
+}
+
+// Median pitch of every file of the hum folder, in code-unit order. A file without a hum gives a warning.
+// The folder is not a label. Only the numbers leave this function, never a sample.
+async function humFolderPitches(dir: string, warnings: TeachWarning[]): Promise<number[]> {
+  const files = (await readdir(join(dir, HUM_FOLDER), { withFileTypes: true }))
+    .filter((e) => e.isFile() && e.name.toLowerCase().endsWith(WAV_EXTENSION))
+    .map((e) => e.name)
+    .sort(compareStrings);
+  const found: number[] = [];
+  for (const file of files) {
+    const rel = `${HUM_FOLDER}/${file}`;
+    const { samples, sampleRate } = await readLabelled(dir, rel);
+    const hz = medianPitchHz(samples, sampleRate);
+    if (hz === null) {
+      warnings.push({ file: rel, code: 'no-pitch-found', message: `${rel} has no steady hum to learn the pitch from. Record a steady hum of at least 2 s.` });
+    } else {
+      found.push(hz);
+    }
+  }
+  if (files.length === 0) {
+    warnings.push({ file: HUM_FOLDER, code: 'no-pitch-found', message: `The ${HUM_FOLDER} folder has no .wav file. Add a steady hum of at least 2 s.` });
+  }
+  return found;
+}
 export async function teachFromDir(dir: string): Promise<{ model: SoundModel; report: TeachReport }> {
   // Outside the wrap, so a missing directory rejects with the file system error unchanged.
   const entries = await readdir(dir, { withFileTypes: true });
@@ -179,14 +209,11 @@ export async function teachFromDir(dir: string): Promise<{ model: SoundModel; re
   const examples: Example[] = [];
   const counts: Record<string, number> = {};
   const labels: string[] = [];
+  const humPitches: number[] = [];
 
   for (const label of folders) {
     if (label === HUM_FOLDER) {
-      warnings.push({
-        file: HUM_FOLDER,
-        code: 'hum-folder-ignored',
-        message: 'The hum folder was ignored: hum teaching is not available yet.',
-      });
+      humPitches.push(...(await humFolderPitches(dir, warnings)));
       continue;
     }
     labels.push(label);
@@ -224,6 +251,7 @@ export async function teachFromDir(dir: string): Promise<{ model: SoundModel; re
   }
 
   const model = knnClassifier.train(examples);
+  if (humPitches.length > 0) model.pitch = { baselineHz: median(humPitches) };
   warnings.sort((a, b) => compareStrings(a.file, b.file) || compareStrings(a.code, b.code));
   return { model, report: { ...looReport(model, labels), warnings } };
 }

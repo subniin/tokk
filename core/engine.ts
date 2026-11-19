@@ -3,7 +3,8 @@
 
 import { BACKGROUND, ENGINE_ADVANCE_MARGIN_MS, SAMPLE_RATE_MAX_HZ, SAMPLE_RATE_MIN_HZ } from './constants';
 import { knnClassifier } from './classify/knn';
-import { noopTracker, type ContinuousTracker } from './continuous/tracker';
+import { PitchTracker } from './continuous/pitch';
+import type { ContinuousTracker } from './continuous/tracker';
 import { Matcher } from './grammar';
 import { Segmenter } from './segment';
 import type { Classifier, MatchEvent, Nearest, Segment, SoundEvent, SoundModel } from './types';
@@ -35,9 +36,8 @@ export interface RunResult {
   unknowns: number[];
 }
 
-// Task 6 replaces this function with the real pitch tracker.
-function createTracker(_sampleRate: number): ContinuousTracker {
-  return noopTracker();
+function createTracker(sampleRate: number): ContinuousTracker {
+  return new PitchTracker(sampleRate);
 }
 
 function checkSampleRate(sampleRate: number): void {

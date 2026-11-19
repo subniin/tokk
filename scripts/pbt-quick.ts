@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 
-const CANDIDATES = ['test/segment.test.ts', 'test/knn.test.ts', 'test/grammar.test.ts'];
+const CANDIDATES = ['test/segment.test.ts', 'test/knn.test.ts', 'test/grammar.test.ts', 'test/pitch.test.ts'];
 const QUICK_RUNS = '20';
 
 const files = CANDIDATES.filter((f) => existsSync(f));
