@@ -1,0 +1,2 @@
+# Generated synthetic fixtures are byte-compared by a test, so git must not convert line endings.
+fixtures/audio/synth/** -text

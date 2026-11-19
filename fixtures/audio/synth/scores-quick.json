@@ -1,0 +1,62 @@
+{
+  "perLabel": [
+    {
+      "label": "high",
+      "truths": 4,
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "inCalibration": 0,
+      "precision": 1,
+      "recall": 1
+    },
+    {
+      "label": "low",
+      "truths": 4,
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "inCalibration": 0,
+      "precision": 1,
+      "recall": 1
+    },
+    {
+      "label": "mid",
+      "truths": 4,
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "inCalibration": 0,
+      "precision": 1,
+      "recall": 1
+    },
+    {
+      "label": "ring",
+      "truths": 4,
+      "tp": 4,
+      "fp": 0,
+      "fn": 0,
+      "inCalibration": 0,
+      "precision": 1,
+      "recall": 1
+    }
+  ],
+  "falsePositivesPerHour": 0,
+  "totalSeconds": 13.8,
+  "inCalibration": 0,
+  "confusion": {
+    "high": {
+      "high": 4
+    },
+    "low": {
+      "low": 4
+    },
+    "mid": {
+      "mid": 4
+    },
+    "ring": {
+      "ring": 4
+    }
+  },
+  "warnings": []
+}

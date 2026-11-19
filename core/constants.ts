@@ -114,3 +114,18 @@ export const SPECTROGRAM_HOP_MS = 10;
 export const SPECTROGRAM_MAX_HZ = 8000;
 export const SPECTROGRAM_HEIGHT_PX = 256;
 export const SPECTROGRAM_FLOOR_DBFS = -90;
+
+// Synthetic fixtures and corpus score
+export const SYNTH_FIXTURE_SAMPLE_RATE_HZ = SAMPLE_RATE_MIN_HZ;
+export const SYNTH_FIXTURE_LEAD_MARGIN_MS = 200;     // added to NOISE_FLOOR_WARMUP_MS
+export const SYNTH_FIXTURE_LEAD_NOISE_DBFS = -75;    // noise bed in the lead and under the sounds, below ONSET_MIN_LEVEL_DBFS
+export const SYNTH_FIXTURE_SOUNDS_SPACING_MS = 600;  // start-to-start distance of impacts in sounds/ files
+export const SYNTH_FIXTURE_QUICK_SPACING_MS = 700;   // start-to-start distance of impacts in quick/ files
+export const SYNTH_FIXTURE_TAIL_MS = 400;
+export const SYNTH_FIXTURE_GAIN_DB = -12;
+export const SYNTH_FIXTURE_GAIN_JITTER_DB = 3;
+export const SYNTH_FIXTURE_SEED = 20261119;
+export const SYNTH_FIXTURE_QUICK_SEED_OFFSET = 1000;  // quick files use other realizations than the sounds files
+export const SYNTH_FIXTURE_BACKGROUND_MS = 2000;      // length of the steady noise after the lead
+export const SYNTH_FIXTURE_BACKGROUND_LEVELS_DBFS = [-45, -35];   // white, then pink
+export const CORPUS_SCORE_BUDGET_MS = 15000;

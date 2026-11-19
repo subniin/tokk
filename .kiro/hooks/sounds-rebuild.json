@@ -1,0 +1,17 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "sounds-rebuild",
+      "description": "Rebuild examples/sounds.json when a recording under examples/sounds/ is saved.",
+      "trigger": "PostFileSave",
+      "matcher": "(^|[\\\\/])examples[\\\\/]sounds[\\\\/].+\\.wav$",
+      "action": {
+        "type": "command",
+        "command": "npm run sounds:rebuild"
+      },
+      "timeout": 60,
+      "enabled": true
+    }
+  ]
+}

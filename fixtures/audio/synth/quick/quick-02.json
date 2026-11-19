@@ -1,0 +1,39 @@
+{
+  "events": [
+    {
+      "label": "ring",
+      "t": 1.2
+    },
+    {
+      "label": "low",
+      "t": 1.9
+    },
+    {
+      "label": "mid",
+      "t": 2.6
+    },
+    {
+      "label": "high",
+      "t": 3.3
+    },
+    {
+      "label": "high",
+      "t": 4
+    },
+    {
+      "label": "mid",
+      "t": 4.7
+    },
+    {
+      "label": "ring",
+      "t": 5.4
+    },
+    {
+      "label": "low",
+      "t": 6.1
+    }
+  ],
+  "device": "synthetic",
+  "room": "none",
+  "sampleRate": 16000
+}

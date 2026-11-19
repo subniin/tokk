@@ -22,7 +22,10 @@
         "check:public-api": "tsx scripts/check-public-api.ts",
         "pbt:quick": "tsx scripts/pbt-quick.ts",
         "score": "tsx scripts/score.ts",
-        "mcp": "tsx tools/mcp-ears/server.ts"
+        "mcp": "tsx tools/mcp-ears/server.ts",
+        "sounds:rebuild": "tsx scripts/sounds-rebuild.ts",
+        "synth:fixtures": "tsx scripts/make-synth-fixtures.ts",
+        "corpus-score": "tsx scripts/corpus-score.ts"
     },
     "keywords": [],
     "author": "",
