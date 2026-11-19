@@ -53,10 +53,9 @@ Why this one: it is continuous in the data, it is the default of the common tool
 1. `z = (v - mean) / std`.
 2. Distance to every example. Sort by `(distance, id)`. The id tie-break makes equal distances deterministic.
 3. `take = min(model.k, n)`. Count votes in the first `take` examples.
-4. Exact copy: if the nearest example is at distance exactly 0, its label is the winner (Requirement 5.10). Otherwise the winner is the label with the most votes. If several labels share the maximum, the winner is the label of the first example in the sorted list (the nearest overall) among them. With k = 3 this is the case 1-1-1. If exactly two labels tie, which cannot happen at k = 3, the same rule applies, and it also covers a hand-made model with another `k`.
-5. `d` = distance to the nearest example of the winner (scan the sorted list for the first example of that label). `T = thresholds[winner]`.
-6. `d > T` gives `unknown`. Otherwise `match` with `confidence = T > 0 ? max(0, 1 - d / T) : 1`. The `T = 0` case with `d = 0`: confidence 1. With `T = 0` and `d > 0` the result is already `unknown`.
-7. `nearest` = first example in the sorted list, with its distance.
+4. Exact copy: if the nearest example is at distance exactly 0, the result is a match with its label and confidence 1 (Requirement 5.10).
+5. Otherwise rank the labels among the first `take` examples by vote count, then by the distance of their nearest example, which is the first of that label in the sorted list (Requirement 5.11, changed in Task 8). With k = 3 this gives 3, 2-1 or 1-1-1; the 1-1-1 order is the nearest first, as before.
+6. Walk the ranking. For each label, `d` = distance of its nearest example and `T = thresholds[label]`. The first label with `d <= T` gives `match` with `confidence = T > 0 ? max(0, 1 - d / T) : 1`. If no label passes, the result is `unknown`.7. `nearest` = first example in the sorted list, with its distance.
 
 The distance to every example is needed for the nearest-of-winner lookup anyway, so a full sort is used: at `n` = 240 it costs microseconds, and a partial selection would add code without an observable gain.
 
@@ -148,7 +147,7 @@ Property tests:
 P6 uses the guarantee of 9.2 (labels from distinct classes). P8 also checks 7.2 on the model itself, so that a platform where float summation order matters would be caught.
 
 ## Behaviour that follows from the rules
-- **A sound that looks like two of my labels.** The vote decides. With 1-1-1 the nearest wins. If its distance is above that label's threshold, the result is `unknown`, even if another label is only slightly farther.
+- **A sound that looks like two of my labels.** The vote decides the order. With 1-1-1 the nearest comes first. If the first label's own nearest example is beyond its threshold, the next label among the k nearest is tried with its own threshold (Requirement 5.11). Only when none passes is the result `unknown`. Why: Task 8 P1 counterexamples `[48000, "high", 3, 460, 0, 20, 984357]` and `[48000, "high", 2, 264, 0, 20, 7]`, where `ring` won the vote, failed its own 4.96 limit, and `high` passed its 9.17 limit (details in `requirements.md`).
 - **Few examples.** At 5 examples per label the threshold uses the 80 % interpolation of the largest of 5 LOO distances. With a label that has one outlier example, the threshold becomes wide. The teaching report (Task 8) shows `looAccuracy` so the user can delete the outlier.
 - **One label.** The vote is trivial. Everything rests on the threshold: a far sound is `unknown`. The 95th percentile x 1.5 is the only guard.
 - **Mixed sample rates.** Features are rate-independent by Task 3's design (within 5 %), so classification works across 44.1 and 48 kHz. The model stores only the first rate for the overlay warning. 16 kHz segments lose high-band content and may be `unknown`; this is the documented design behaviour.

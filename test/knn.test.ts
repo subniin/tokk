@@ -397,6 +397,18 @@ describe('knn classifier', () => {
     expect(requireMatch(classifyVector(model, [0.1])).label).toBe('b');
   });
 
+  it('a vote winner beyond its own threshold gives way to the next label within its own threshold (Req 5.11)', () => {
+    // The P1 situation: ring examples at 6 and 8 outvote a high example at 7. ring's threshold (3) rejects
+    // the query at 0, high's own threshold (10) accepts it, so the result is high, with high's distance.
+    const model = handModel([['ring', [6, 8, 50, 51, 52]], ['high', [7, 60, 61, 62, 63]]], { ring: 3, high: 10 });
+    const r = requireMatch(classifyVector(model, [0]));
+    expect(r.label).toBe('high');
+    expect(r.confidence).toBeCloseTo(0.3, 12);
+    expect(r.nearest.id).toBe('ring/000#0');
+    // When no label among the k nearest passes its own threshold, the result is unknown.
+    const strict = handModel([['ring', [6, 8, 50, 51, 52]], ['high', [7, 60, 61, 62, 63]]], { ring: 3, high: 5 });
+    expect(classifyVector(strict, [0]).kind).toBe('unknown');
+  });
   it('1-1-1 tie goes to the label of the nearest example (Req 5.3)', () => {
     const model = trainVectors(
       oneDim([
@@ -666,4 +678,21 @@ describe('property tests', () => {
     },
     Math.max(TIMEOUT_FLOOR_MS, PBT_RUNS * P_MS_PER_RUN),
   );
+});
+
+
+describe('trainVectors minimum count option (Task 8, Req 16.4)', () => {
+  function fourPerLabel(): { id: string; label: string; v: number[] }[] {
+    const out: { id: string; label: string; v: number[] }[] = [];
+    for (const [label, base] of [['aa', 0], ['bb', 10]] as const) {
+      for (let i = 0; i < 4; i++) out.push({ id: `${label}/f#${i}`, label, v: Array.from({ length: FEATURE_LENGTH }, (_, j) => base + i * 0.1 + j * 0.01) });
+    }
+    return out;
+  }
+
+  it('throws with 4 examples per label by default and trains with minExamplesPerLabel 4', () => {
+    expect(() => trainVectors(fourPerLabel(), TEST_SAMPLE_RATE_HZ)).toThrow(TooFewExamplesError);
+    const model = trainVectors(fourPerLabel(), TEST_SAMPLE_RATE_HZ, { minExamplesPerLabel: 4 });
+    expect(model.examples).toHaveLength(8);
+  });
 });

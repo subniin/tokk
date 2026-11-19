@@ -70,11 +70,16 @@ function standardize(v: number[], mean: number[], std: number[]): number[] {
   return z;
 }
 
-export function trainVectors(examples: VectorExample[], sampleRate: number): SoundModel {
+export function trainVectors(
+  examples: VectorExample[],
+  sampleRate: number,
+  options?: { minExamplesPerLabel?: number },
+): SoundModel {
+  const minExamples = options?.minExamplesPerLabel ?? MIN_EXAMPLES_PER_LABEL;
   // 1. Counts first, so the error never depends on the vector contents.
   const counts = countLabels(examples);
   const labels = Object.keys(counts);
-  if (labels.length === 0 || labels.some((l) => counts[l] < MIN_EXAMPLES_PER_LABEL)) {
+  if (labels.length === 0 || labels.some((l) => counts[l] < minExamples)) {
     throw new TooFewExamplesError(counts);
   }
 
@@ -165,21 +170,32 @@ export function classifyVector(model: SoundModel, v: number[]): ClassifyResult {
   ranked.sort((a, b) => a.distance - b.distance || compareStrings(a.id, b.id));
 
   const take = Math.min(model.k, ranked.length);
-  const votes = new Map<string, number>();
-  for (let i = 0; i < take; i++) votes.set(ranked[i].label, (votes.get(ranked[i].label) ?? 0) + 1);
-  const mostVotes = Math.max(...votes.values());
-  // The first of the nearest examples whose label has the most votes decides a tie.
-  // A vector identical to a stored example takes that example's label, whatever its neighbours vote.
-  const exact = ranked[0].distance === 0;
-  const winner = exact ? ranked[0].label : ranked.find((r) => votes.get(r.label) === mostVotes)!.label;
-
   const nearest: Nearest = { id: ranked[0].id, label: ranked[0].label, distance: ranked[0].distance };
-  const d = ranked.find((r) => r.label === winner)!.distance;
-  const threshold = model.thresholds[winner];
-  if (d > threshold) return { kind: 'unknown', nearest };
-  return { kind: 'match', label: winner, confidence: confidenceOf(d, threshold), nearest };
-}
+  // A vector identical to a stored example takes that example's label, whatever its neighbours vote.
+  if (ranked[0].distance === 0) {
+    const threshold = model.thresholds[ranked[0].label];
+    return { kind: 'match', label: ranked[0].label, confidence: confidenceOf(0, threshold), nearest };
+  }
 
+  // Labels among the k nearest, ranked by votes, then by the distance of their nearest example
+  // (the first one met in the sorted list is the nearest of that label).
+  const votes = new Map<string, { count: number; distance: number }>();
+  for (let i = 0; i < take; i++) {
+    const v = votes.get(ranked[i].label);
+    if (v === undefined) votes.set(ranked[i].label, { count: 1, distance: ranked[i].distance });
+    else v.count++;
+  }
+  const order = [...votes.entries()].sort((a, b) => b[1].count - a[1].count || a[1].distance - b[1].distance);
+
+  // The first label in that order whose own nearest example is within its own threshold wins.
+  for (const [label, v] of order) {
+    const threshold = model.thresholds[label];
+    if (v.distance <= threshold) {
+      return { kind: 'match', label, confidence: confidenceOf(v.distance, threshold), nearest };
+    }
+  }
+  return { kind: 'unknown', nearest };
+}
 export const knnClassifier: Classifier = {
   train(examples: { id: string; label: string; segment: Segment }[]): SoundModel {
     const sampleRate = examples.length > 0 ? examples[0].segment.sampleRate : 0;

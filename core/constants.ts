@@ -12,9 +12,10 @@ export const SILENCE_LEVEL_DBFS = -90;
 export const NOISE_FLOOR_INITIAL_DBFS = -70;
 export const NOISE_FLOOR_MIN_DBFS = -90;
 export const NOISE_FLOOR_RISE_TIME_CONSTANT_MS = 1000;
-export const ONSET_ABOVE_FLOOR_DB = 12;
+export const ONSET_ABOVE_FLOOR_DB = 16;
 export const ONSET_MIN_LEVEL_DBFS = -60;
-export const ONSET_RISE_DB = 6;
+export const ONSET_RISE_DB = 3;               // one-hop step needed within ONSET_RISE_SPAN_MS
+export const ONSET_RISE_SPAN_MS = 60;
 export const ONSET_MIN_GAP_MS = 80;
 export const ONSET_LEAD_MS = 5;
 export const REONSET_MIN_SEGMENT_AGE_MS = 80;
@@ -24,9 +25,14 @@ export const SEGMENT_MAX_MS = 1500;
 export const REONSET_RISE_DB = 3;
 export const REONSET_CONFIRM_MS = 70;
 export const REONSET_CONFIRM_BEFORE_MS = 30;
-export const REONSET_CONFIRM_DB = 2.4;
+export const REONSET_CONFIRM_DB = 4;
+export const REONSET_CONFIRM_EARLY_MS = 15;
+export const REONSET_CONFIRM_EARLY_DB = 3;
 export const NOISE_FLOOR_WARMUP_MS = 1000;
 export const NOISE_FLOOR_WARMUP_RISE_MS = 100;
+
+// Engine advance rule: the matcher is never advanced past a sound whose onset hop is not analyzed yet.
+export const ENGINE_ADVANCE_MARGIN_MS = SEGMENT_HOP_MS + ONSET_LEAD_MS;
 
 // Features
 export const FEATURE_LENGTH = 32;
@@ -60,6 +66,10 @@ export const BACKGROUND = 'background';
 export const BACKGROUND_WINDOW_MS = 300;
 export const BACKGROUND_WINDOW_OVERLAP_PERCENT = 50;
 export const BACKGROUND_MAX_EXAMPLES = 200;
+
+// Teaching report
+export const LOO_MIN_EXAMPLES_PER_LABEL = MIN_EXAMPLES_PER_LABEL - 1;   // one example is held out
+export const CONFUSED_PAIR_MIN_RATE = 0.1;
 
 // Pitch
 export const PITCH_ANALYSIS_RATE_HZ = 8000;

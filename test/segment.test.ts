@@ -241,9 +241,9 @@ describe('onset thresholds (Req 5)', () => {
     expect(segs.length).toBe(1);
   });
 
-  it('a 5 dB per hop rise never opens a segment (rise rule, Req 5.4)', () => {
+  it('a 2.5 dB per hop rise (no 3 dB step) never opens a segment (rise rule, Req 5.4)', () => {
     const sr = 44100;
-    const x = concat(silence(LEAD_MS, sr), constantDb(-70, 300, sr), rampDb(-70, -40, 5, 500, sr));
+    const x = concat(silence(LEAD_MS, sr), constantDb(-70, 300, sr), rampDb(-70, -40, 2.5, 500, sr));
     expect(runAll(sr, x)).toEqual([]);
   });
 
@@ -253,14 +253,14 @@ describe('onset thresholds (Req 5)', () => {
     expect(runAll(sr, x).length).toBeGreaterThanOrEqual(1);
   });
 
-  it('a rise that stays below floor + 12 dB does not open a segment', () => {
+  it('a rise that stays below the onset line (floor + 16 dB) does not open a segment', () => {
     const sr = 44100;
-    // Floor settles near -62 after 5 s, so floor + 12 is about -50. The ramp stops at -55.
+    // Floor settles near -62 after 5 s, so floor + 16 is about -46. The ramp stops at -55.
     const x = concat(silence(LEAD_MS, sr), constantDb(-62, 5000, sr), rampDb(-62, -55, 7, 500, sr));
     expect(runAll(sr, x)).toEqual([]);
   });
 
-  it('a rise that passes floor + 12 dB opens a segment', () => {
+  it('a rise that passes the onset line (floor + 16 dB) opens a segment', () => {
     const sr = 44100;
     const x = concat(silence(LEAD_MS, sr), constantDb(-62, 5000, sr), rampDb(-62, -40, 7, 300, sr));
     expect(runAll(sr, x).length).toBeGreaterThanOrEqual(1);

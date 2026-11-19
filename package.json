@@ -3,6 +3,16 @@
     "version": "1.0.0",
     "description": "",
     "main": "index.js",
+    "exports": {
+        ".": {
+            "types": "./core/index.ts",
+            "default": "./core/index.ts"
+        },
+        "./node": {
+            "types": "./node/index.ts",
+            "default": "./node/index.ts"
+        }
+    },
     "directories": {
         "doc": "docs"
     },

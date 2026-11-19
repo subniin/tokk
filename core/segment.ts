@@ -13,6 +13,7 @@ import {
   ONSET_ABOVE_FLOOR_DB,
   ONSET_MIN_LEVEL_DBFS,
   ONSET_RISE_DB,
+  ONSET_RISE_SPAN_MS,
   ONSET_MIN_GAP_MS,
   ONSET_LEAD_MS,
   REONSET_MIN_SEGMENT_AGE_MS,
@@ -20,6 +21,8 @@ import {
   REONSET_CONFIRM_MS,
   REONSET_CONFIRM_BEFORE_MS,
   REONSET_CONFIRM_DB,
+  REONSET_CONFIRM_EARLY_MS,
+  REONSET_CONFIRM_EARLY_DB,
   OFFSET_ABOVE_FLOOR_DB,
   OFFSET_HOLD_MS,
   SEGMENT_MAX_MS,
@@ -61,13 +64,17 @@ export class Segmenter {
   private readonly confirmPost: number;   // samples after the candidate that are compared
   private readonly confirmPre: number;    // samples before the candidate that are compared
   private readonly confirmRatio: number;  // REONSET_CONFIRM_DB as a power ratio
+  private readonly confirmEarly: number;  // samples after the candidate in the early check
+  private readonly confirmEarlyRatio: number;  // REONSET_CONFIRM_EARLY_DB as a power ratio
+  private readonly riseHops: number;      // hops in ONSET_RISE_SPAN_MS, the span of the onset rise
 
   private floor = NOISE_FLOOR_INITIAL_DBFS;
   private prevLevel = SILENCE_LEVEL_DBFS;
+  private recentLevels: number[] = [];   // levels of the last riseHops hops, oldest first
   private lastOnsetHop: number | null = null;
   private lastEnd = 0;
   private open: OpenSegment | null = null;
-  private pending: Candidate | null = null;   // cleared whenever the open segment closes
+  private pending: Candidate[] = [];   // oldest first, cleared whenever the open segment closes
 
   // Input buffer. buf[i] holds absolute sample bufBase + i. Samples before the retained
   // region are dropped when the buffer is compacted.
@@ -101,6 +108,10 @@ export class Segmenter {
     this.confirmPost = msToSamples(REONSET_CONFIRM_MS, sampleRate);
     this.confirmPre = msToSamples(REONSET_CONFIRM_BEFORE_MS, sampleRate);
     this.confirmRatio = Math.pow(10, REONSET_CONFIRM_DB / DB_POWER_DIVISOR);
+    this.confirmEarly = msToSamples(REONSET_CONFIRM_EARLY_MS, sampleRate);
+    this.confirmEarlyRatio = Math.pow(10, REONSET_CONFIRM_EARLY_DB / DB_POWER_DIVISOR);
+    this.riseHops = Math.max(1, Math.round(ONSET_RISE_SPAN_MS / SEGMENT_HOP_MS));
+    this.recentLevels = new Array<number>(this.riseHops).fill(SILENCE_LEVEL_DBFS);
     this.buf = new Float32Array(2 * (this.maxLen + this.window + this.lead + this.hop));
   }
 
@@ -121,7 +132,7 @@ export class Segmenter {
     const start = this.open.start;
     const end = Math.min(this.total, start + this.maxLen);
     this.open = null;
-    this.pending = null;
+    this.pending = [];
     this.lastEnd = end;
     return [this.emit(start, end)];
   }
@@ -212,7 +223,7 @@ export class Segmenter {
         out.push(this.emit(seg.start, end));
         this.lastEnd = end;
         this.open = null;
-        this.pending = null;
+        this.pending = [];
       } else {
         if (level < this.floor + OFFSET_ABOVE_FLOOR_DB) {
           seg.belowCount++;
@@ -223,55 +234,61 @@ export class Segmenter {
           out.push(this.emit(seg.start, hopEnd));
           this.lastEnd = hopEnd;
           this.open = null;
-          this.pending = null;
+          this.pending = [];
         }
       }
       if (this.open !== null) this.stepReonset(h, hopEnd, level, out);
     }
     this.prevLevel = level;
+    this.recentLevels.shift();
+    this.recentLevels.push(level);
   }
 
-  // Two-stage re-onset. Stage 1 marks a candidate hop: a one-hop rise of REONSET_RISE_DB in a segment
-  // that is old enough. Stage 2 runs once the confirmation window after the candidate has arrived. It
-  // accepts the candidate only if the mean energy after it exceeds the mean energy just before it by
-  // REONSET_CONFIRM_DB, because a real hit adds energy that persists and a fluctuation of a decaying
-  // narrowband tail does not. Only buffered hops are used, so chunk boundaries do not matter.
+  // Two-stage re-onset. Stage 1 marks candidate hops: a one-hop rise of REONSET_RISE_DB in a segment
+  // that is old enough. Every such hop is queued, also while earlier candidates wait. Stage 2 decides each
+  // candidate, oldest first, once its confirmation window has arrived. It accepts a candidate only if the
+  // mean energy of the REONSET_CONFIRM_MS after it exceeds the mean energy of the REONSET_CONFIRM_BEFORE_MS
+  // before it by REONSET_CONFIRM_DB (a real hit adds energy that persists, a fluctuation of a decaying
+  // narrowband tail does not), and the first REONSET_CONFIRM_EARLY_MS after it already do so by
+  // REONSET_CONFIRM_EARLY_DB (the energy rises at the candidate, not at a later hit inside the window).
+  // The first accepted candidate cuts the segment and drops the rest of the queue. Only buffered hops
+  // are used, so chunk boundaries do not matter.
   private stepReonset(h: number, hopEnd: number, level: number, out: Segment[]): void {
     const seg = this.open as OpenSegment;
-    const p = this.pending;
-    if (p === null) {
-      if ((h - seg.onsetHop) * this.hop >= this.age && level - this.prevLevel >= REONSET_RISE_DB) {
-        this.pending = { hop: h, levels: [level] };
-      }
+    for (const p of this.pending) p.levels.push(level);
+    if ((h - seg.onsetHop) * this.hop >= this.age && level - this.prevLevel >= REONSET_RISE_DB) {
+      this.pending.push({ hop: h, levels: [level] });
+    }
+    while (this.pending.length > 0 && hopEnd >= this.pending[0].hop * this.hop + this.confirmPost) {
+      const p = this.pending.shift() as Candidate;
+      const c = p.hop * this.hop;
+      const pre = this.meanEnergy(c - this.confirmPre, c);
+      const post = this.meanEnergy(c, c + this.confirmPost);
+      const early = this.meanEnergy(c, c + this.confirmEarly);
+      if (!(post > 0 && post >= pre * this.confirmRatio && early >= pre * this.confirmEarlyRatio)) continue;
+
+      // Confirmed. Cut ONSET_LEAD_MS before the candidate hop and continue as a new segment.
+      const newStart = c - this.lead;
+      out.push(this.emit(seg.start, newStart));
+      let below = 0;
+      for (let i = p.levels.length - 1; i >= 0 && p.levels[i] < this.floor + OFFSET_ABOVE_FLOOR_DB; i--) below++;
+      this.open = { start: newStart, onsetHop: p.hop, belowCount: below };
+      this.lastOnsetHop = p.hop;
+      this.lastEnd = newStart;
+      this.pending = [];
       return;
     }
-    p.levels.push(level);
-    const c = p.hop * this.hop;
-    if (hopEnd < c + this.confirmPost) return;
-    this.pending = null;
-
-    const post = this.meanEnergy(c, c + this.confirmPost);
-    const pre = this.meanEnergy(c - this.confirmPre, c);
-    if (!(post > 0 && post >= pre * this.confirmRatio)) return;
-
-    // Confirmed. Cut ONSET_LEAD_MS before the candidate hop and continue as a new segment.
-    const newStart = c - this.lead;
-    out.push(this.emit(seg.start, newStart));
-    let below = 0;
-    for (let i = p.levels.length - 1; i >= 0 && p.levels[i] < this.floor + OFFSET_ABOVE_FLOOR_DB; i--) below++;
-    this.open = { start: newStart, onsetHop: p.hop, belowCount: below };
-    this.lastOnsetHop = p.hop;
-    this.lastEnd = newStart;
   }
-
   private isOnset(h: number, level: number): boolean {
     const gapOk = this.lastOnsetHop === null || (h - this.lastOnsetHop) * this.hop >= this.gap;
-    return (
-      level > this.floor + ONSET_ABOVE_FLOOR_DB &&
-      level >= ONSET_MIN_LEVEL_DBFS &&
-      level - this.prevLevel >= ONSET_RISE_DB &&
-      gapOk
-    );
+    if (!(gapOk && level > this.floor + ONSET_ABOVE_FLOOR_DB && level >= ONSET_MIN_LEVEL_DBFS)) return false;
+    // A sudden step of ONSET_RISE_DB between two hops within the last ONSET_RISE_SPAN_MS. The level itself
+    // may reach the onset line later, so a slow attack (narrowband impacts in noise) is still found, while a
+    // steady sound or a slow ramp, which has no such step, does not open a segment.
+    const recent = this.recentLevels;
+    let step = level - recent[recent.length - 1];
+    for (let i = 1; i < recent.length; i++) step = Math.max(step, recent[i] - recent[i - 1]);
+    return step >= ONSET_RISE_DB;
   }
 
   private updateFloor(level: number, hopEnd: number): void {
