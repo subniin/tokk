@@ -105,6 +105,8 @@ export const MATCH_TOLERANCE_MS = 50;
 export const REGRESSION_RECALL_DROP = 0.02;
 export const REGRESSION_MIN_TRUTHS = 50;
 export const REGRESSION_TP_DROP_COUNT = 2;
+// Rounding allowance (unitless) for time and recall comparisons in scoring, so that 0.02 or 50 ms exactly never fails on float error.
+export const SCORE_EPSILON = 1e-9;
 
 // Spectrogram
 export const SPECTROGRAM_FFT_SIZE = 1024;
