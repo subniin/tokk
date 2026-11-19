@@ -1,0 +1,17 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "public-api-only",
+      "description": "Fail when a file under apps/ imports from core/ instead of the public API.",
+      "trigger": "PostFileSave",
+      "matcher": "(^|[\\\\/])apps[\\\\/]",
+      "action": {
+        "type": "command",
+        "command": "npm run check:public-api"
+      },
+      "timeout": 30,
+      "enabled": true
+    }
+  ]
+}

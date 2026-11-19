@@ -1,0 +1,17 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "pbt-quick",
+      "description": "Run the property tests with 20 cases when the segmenter, the grammar or the classifier is saved.",
+      "trigger": "PostFileSave",
+      "matcher": "(^|[\\\\/])core[\\\\/](segment\\.ts|grammar\\.ts|classify[\\\\/].+)$",
+      "action": {
+        "type": "command",
+        "command": "npm run pbt:quick"
+      },
+      "timeout": 60,
+      "enabled": true
+    }
+  ]
+}

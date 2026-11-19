@@ -8,7 +8,9 @@
     },
     "scripts": {
         "test": "vitest run",
-        "test:quick": "vitest run --reporter dot"
+        "test:quick": "vitest run --reporter dot",
+        "check:public-api": "tsx scripts/check-public-api.ts",
+        "pbt:quick": "tsx scripts/pbt-quick.ts"
     },
     "keywords": [],
     "author": "",
