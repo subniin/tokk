@@ -54,6 +54,7 @@ export const MIN_EXAMPLES_PER_LABEL = 5;
 export const RECOMMENDED_EXAMPLES_PER_LABEL = 10;
 export const STD_FLOOR_RANGE_FRACTION = 0.05;
 export const STD_FLOOR_ABSOLUTE = 0.01;
+export const BACKGROUND = 'background';
 
 // Teaching
 export const BACKGROUND_WINDOW_MS = 300;
