@@ -21,6 +21,12 @@ export const REONSET_MIN_SEGMENT_AGE_MS = 80;
 export const OFFSET_ABOVE_FLOOR_DB = 6;
 export const OFFSET_HOLD_MS = 30;
 export const SEGMENT_MAX_MS = 1500;
+export const REONSET_RISE_DB = 3;
+export const REONSET_CONFIRM_MS = 70;
+export const REONSET_CONFIRM_BEFORE_MS = 30;
+export const REONSET_CONFIRM_DB = 2.4;
+export const NOISE_FLOOR_WARMUP_MS = 1000;
+export const NOISE_FLOOR_WARMUP_RISE_MS = 100;
 
 // Features
 export const FEATURE_LENGTH = 32;
