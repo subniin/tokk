@@ -25,6 +25,8 @@ export const FIXTURE_HANDS_FREE_WAV_PATH = resolve(GENERATED_DIR, 'hands-free.wa
 export const FIXTURE_HANDS_FREE_TIMES_PATH = resolve(GENERATED_DIR, 'hands-free-times.json');
 export const FIXTURE_KNOCK_ONCE_WAV_PATH = resolve(GENERATED_DIR, 'knock-once.wav');      // Task 23
 export const FIXTURE_KNOCK_ONCE_TIMES_PATH = resolve(GENERATED_DIR, 'knock-once-times.json');
+export const FIXTURE_SLIDES_WAV_PATH = resolve(GENERATED_DIR, 'slides.wav');      // Task 26
+export const FIXTURE_SLIDES_TIMES_PATH = resolve(GENERATED_DIR, 'slides-times.json');
 export const TEACH_PAGE_SEED_DIR = resolve(GENERATED_DIR, 'teach-page-seed');   // holds sounds/<label>/<label>-01.wav of two labels
 
 // URLs below the served repository root.
@@ -41,6 +43,7 @@ export const FIXTURE_PITCH_ONLY_MODEL_URL = '/test/web/generated/sounds-pitch-on
 export const FIXTURE_TEACH_WAV_URL = '/test/web/generated/teach-10.wav';
 export const HANDS_FREE_PAGE_URL = '/apps/hands-free/index.html';   // Task 22
 export const KNOCK_ONCE_PAGE_URL = '/apps/knock-once/index.html';   // Task 23
+export const SLIDES_PAGE_URL = '/cases/slides/index.html';   // Task 26
 export const FIRST_RUN_PAGE_URL = '/test/web/first-run.html';
 export const PAGE_URL = '/test/web/listen.html';
 export const TEACH_PAGE_URL = '/test/web/teach.html';

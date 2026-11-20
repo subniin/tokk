@@ -76,3 +76,7 @@ Audio never leaves the device. `sounds.json` holds feature vectors only. Origina
 ## License
 
 MIT, see `LICENSE`.
+
+## Slide deck case
+
+[`cases/slides/`](cases/slides/) is a third case: a slide deck shown with reveal.js, with sound control added through Tokk (clap twice for the next slide, three times for the previous slide). Its claps for the Node tests are synthetic, and recognition of a real clap is pending. The deck uses [reveal.js](https://revealjs.com) by Hakim El Hattab, version 6.0.2, under the MIT licence (the licence text is in `cases/slides/LICENSE-revealjs.txt`).

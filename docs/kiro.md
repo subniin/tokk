@@ -101,6 +101,7 @@ The operator ran both agents headless (date in `docs/devlog.md`).
 
 - `sound-tuner` (0.24 credits): called `score` on `fixtures/audio/synth/quick` with `fixtures/audio/synth/sounds.json`, and `spectrogram` on `quick-01.wav` from 1.0 to 3.5 s. Precision and recall were 1.000 for `high`, `low`, `mid` and `ring` (4 true positives each, 0 false positives, 0 false negatives). False positives per hour: 0.0 over 13.8 s. The spectrogram showed four broadband bursts up to about 8 kHz. It proposed no threshold change because nothing was confused. It could not cite `nearest.id`, because `score` does not print ids and `teach` had not run. It also noted that a perfect synthetic score says nothing about real recordings.
 - `integrator` (0.18 credits): called `listen` on `quick-01.wav` and got `mid`, `high`, `low`, `ring`, `ring`, `low`, `high`, `mid` at 700 ms spacing. It wrote the `listen()` wiring and an `expectEvents` line. It pointed out that 700 ms gaps are rests (350 to 1000 ms), so the pattern `ring ring` would not fire on that file and `ring _ ring` would.
+- Third case (`cases/slides`): the operator ran `integrator` headless on the slide deck with a sound list and a pattern table. It wrote only the start button, the marked wiring in the case's main source file and `test/slides-events.test.ts`, and ran only `npx vitest run test/slides-events.test.ts`. The caption and the styling were added afterwards in a normal run (see `docs/integration.md`).
 
 ## Documentation checked
 The operator checked these pages on 2026-11-20:

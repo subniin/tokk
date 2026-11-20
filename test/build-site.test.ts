@@ -242,6 +242,8 @@ describe('the site build and cases (Task 26, U3)', () => {
     expect(files).toEqual(EXPECTED_CASE_FILES);
     expect([...withCases].filter((f) => f.startsWith('cases/')).sort()).toEqual(EXPECTED_CASE_FILES);
     expect(files.filter((f) => /sounds|recordings|\/src\/|\.wav$|\.md$|\.ts$|\.map$/.test(f))).toEqual([]);
+    // Not even an empty recordings folder is left behind (requirement 4.4).
+    expect(existsSync(join(outDir, 'cases', CASE_NAME, 'recordings'))).toBe(false);
     expect(readFileSync(join(outDir, 'cases', CASE_NAME, LICENSE_NAME), 'utf8')).toBe('Copyright (C) fixture\n');
   });
 

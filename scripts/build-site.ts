@@ -17,6 +17,8 @@ const DEFAULT_APPS_DIR = join(ROOT, 'apps');
 const DEFAULT_CASES_DIR = join(ROOT, 'cases');
 // A case folder never ships its sound model: the model of a case only serves a Node test, and its page teaches the user's own sound.
 export const CASE_SKIPPED_FILES = ['sounds.json'];
+// The recordings of a case only serve Node tests (privacy rule: recordings stay in local folders), so the folder is not copied, not even empty.
+export const CASE_SKIPPED_FOLDERS = ['recordings'];
 
 // What never reaches the site, whatever an app puts beside its index.html (requirement 6.4). One list, one test per entry.
 export const SITE_DENY_LIST = {
@@ -45,12 +47,12 @@ function checkOutDir(outDir: string): void {
   if (existsSync(join(outDir, '.git'))) throw new Error(`The output folder ${outDir} holds a .git folder. Refusing to empty it.`);
 }
 
-function copyTree(from: string, to: string, skipFiles: string[] = []): void {
+function copyTree(from: string, to: string, skipFiles: string[] = [], skipFolders: string[] = []): void {
   mkdirSync(to, { recursive: true });
   for (const entry of readdirSync(from, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
     const isDirectory = entry.isDirectory();
     if (isDenied(entry.name, isDirectory)) continue;
-    if (isDirectory) copyTree(join(from, entry.name), join(to, entry.name), skipFiles);
+    if (isDirectory) { if (!skipFolders.includes(entry.name)) copyTree(join(from, entry.name), join(to, entry.name), skipFiles, skipFolders); }
     else if (entry.isFile() && !skipFiles.includes(entry.name)) copyFileSync(join(from, entry.name), join(to, entry.name));
   }
 }
@@ -99,14 +101,14 @@ export async function buildSite(options: { outDir?: string; appsDir?: string; ca
     esbuild({ ...TEACH_PAGE_OPTIONS, outfile: join(outDir, 'dist', 'teach-page.js'), minify: true, plugins: [workerSourcePlugin(true)] }),
   ]);
   copyTree(join(ROOT, 'examples', 'hello'), join(outDir, 'examples', 'hello'));
-  const groups: { label: string; folder: string; from: string | undefined; names: string[]; skip: string[] }[] = [
-    { label: 'App', folder: 'apps', from: appsDir, names: apps, skip: [] },
-    { label: 'Case', folder: 'cases', from: casesDir, names: cases, skip: CASE_SKIPPED_FILES },
+  const groups: { label: string; folder: string; from: string | undefined; names: string[]; skip: string[]; skipFolders: string[] }[] = [
+    { label: 'App', folder: 'apps', from: appsDir, names: apps, skip: [], skipFolders: [] },
+    { label: 'Case', folder: 'cases', from: casesDir, names: cases, skip: CASE_SKIPPED_FILES, skipFolders: CASE_SKIPPED_FOLDERS },
   ];
-  for (const { label, folder, from, names, skip } of groups) {
+  for (const { label, folder, from, names, skip, skipFolders } of groups) {
     for (const name of names) {
       if (from === undefined) continue;
-      copyTree(join(from, name), join(outDir, folder, name), skip);
+      copyTree(join(from, name), join(outDir, folder, name), skip, skipFolders);
       try {
         await esbuild(appBuildOptions(join(from, name), { minify: true, outfile: join(outDir, folder, name, 'dist', 'app.js') }));
       } catch (e) {

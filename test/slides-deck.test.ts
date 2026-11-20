@@ -15,6 +15,7 @@ const THEME_NAME = 'serif';
 const SLIDES_MIN = 5;
 const SLIDES_MAX = 6;
 const TEXT_CONTRAST_MIN = 4.5;
+const GRAPHICS_CONTRAST_MIN = 3;
 const read = (...parts: string[]): string => readFileSync(join(CASE_DIR, ...parts), 'utf8');
 
 // Every source file of the case that can hold an import (the same extensions as scripts/check-public-api.ts).
@@ -124,6 +125,30 @@ describe('the deck page (Task 26, U4)', () => {
     for (const name of ['r-main-color', 'r-heading-color', 'r-link-color']) expect(contrastRatio(variable(name), background), name).toBeGreaterThanOrEqual(TEXT_CONTRAST_MIN);
     // The check itself catches a bad pair.
     expect(contrastRatio('#777777', '#888888')).toBeLessThan(TEXT_CONTRAST_MIN);
+  });
+
+  it('U4: the caption and the start button meet the contrast rule (text 4.5 to 1, border 3 to 1 against the page)', () => {
+    const css = readFileSync(join(CASE_DIR, 'src', 'style.css'), 'utf8');
+    const colour = (name: string): string => {
+      const m = new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6})`).exec(css);
+      if (!m) throw new Error(`no --${name} hex colour in style.css`);
+      return m[1];
+    };
+    const theme = readFileSync(join(REVEAL_PACKAGE_DIR, 'dist', 'theme', `${THEME_NAME}.css`), 'utf8');
+    const page = /--r-background-color:\s*(#[0-9a-fA-F]{6})/.exec(theme)?.[1] ?? '#ffffff';
+    expect(contrastRatio(colour('sound-text'), colour('sound-background')), 'caption text').toBeGreaterThanOrEqual(TEXT_CONTRAST_MIN);
+    expect(contrastRatio(colour('sound-button-text'), colour('sound-button-background')), 'button text').toBeGreaterThanOrEqual(TEXT_CONTRAST_MIN);
+    expect(contrastRatio(colour('sound-border'), page), 'border and focus outline against the page').toBeGreaterThanOrEqual(GRAPHICS_CONTRAST_MIN);
+    expect(contrastRatio(colour('sound-border'), colour('sound-background')), 'border against the caption').toBeGreaterThanOrEqual(GRAPHICS_CONTRAST_MIN);
+    expect(contrastRatio('#cccccc', '#ffffff')).toBeLessThan(GRAPHICS_CONTRAST_MIN);   // the check catches a pale border
+  });
+
+  it('U4: the page has the caption as a polite status region and the start button, both outside the reveal element', () => {
+    const page = html();
+    expect(page).toMatch(/<p id="caption" role="status" aria-live="polite">Sound control is off\. Press Start sound control\.<\/p>/);
+    expect(page).toMatch(/<button id="start-sound" type="button">Start sound control<\/button>/);
+    expect(page.indexOf('id="caption"')).toBeGreaterThan(page.indexOf('</div>\n  </div>'));
+    expect(page.match(/\bid="caption"/g)).toHaveLength(1);
   });
 
   it('U4: the stylesheet of the case sets no transition and no animation, except `none` as the override', () => {

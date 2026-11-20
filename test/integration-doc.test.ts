@@ -13,6 +13,8 @@ const APP_ROWS: { group: string; marker: string }[] = [
   { group: 'apps/hands-free', marker: 'Hands-Free' },
   { group: 'apps/knock-once', marker: 'Knock Once' },
 ];
+const THIRD_CASE_MARKER = 'task 26';
+const STAGE_ONE_COMMIT = 'f21a3b1';
 const COMMITS = ['e7d5083', '2e29c2f', '9bf4b5f', '3a32cf3'];
 
 const doc = (): string => (existsSync(DOC_PATH) ? readFileSync(DOC_PATH, 'utf8') : '');
@@ -51,7 +53,17 @@ describe('docs/integration.md', () => {
       const lines = groups.find((g) => g.name === group)!.lines;
       expect(row![2]).toBe(`${lines} lines`);
     }
-    expect(rows.some((r) => r.join(' ').includes('not done yet'))).toBe(true);
+    // Task 26, named update of I2: the third row is filled. It states the computed cases/slides line count (the agent's own
+    // number and the part the caption added may follow it), and names reveal.js, the MIT licence and the synthetic claps.
+    const third = rows.find((r) => r[0].includes(THIRD_CASE_MARKER));
+    expect(third, 'no third case row').toBeDefined();
+    const slidesLines = groups.find((g) => g.name === 'cases/slides')!.lines;
+    expect(third![2].startsWith(`${slidesLines} lines`), `the third row says ${third![2]}, not ${slidesLines} lines`).toBe(true);
+    const text = third!.join(' ');
+    for (const word of ['reveal.js', '6.0.2', 'MIT', 'synthetic', STAGE_ONE_COMMIT]) expect(text, word).toContain(word);
+    expect(rows.some((r) => r.join(' ').includes('not done yet'))).toBe(false);
+    // The row keeps a check that fails on a broken input: a wrong line count does not satisfy it.
+    expect(`${slidesLines + 1} lines`.startsWith(`${slidesLines} lines`)).toBe(false);
   });
 
   it('I3: has no placeholder', () => {
@@ -64,6 +76,17 @@ describe('docs/integration.md', () => {
     const rows = tableRows(section(doc(), 'Human checks with a real microphone'));
     expect(rows.length).toBeGreaterThanOrEqual(MIN_HUMAN_CHECK_ROWS);
     for (const r of rows) expect(r[r.length - 1]).toBe(NOT_MEASURED);
+  });
+
+  it('I4: the Double clap row says how to measure it and keeps the target', () => {
+    const rows = tableRows(section(doc(), 'Human checks with a real microphone'));
+    const row = rows.find((r) => r[0] === 'Double clap');
+    expect(row, 'no Double clap row').toBeDefined();
+    const text = row!.join(' ');
+    expect(text).toContain('Teach the clap once in the deck, then clap twice 10 times and three times 10 times');
+    expect(text).toContain('at least 9 of 10 for each pattern');
+    expect(text).not.toContain('defined by task 26');
+    expect(row![row!.length - 1]).toBe(NOT_MEASURED);
   });
 
   it('I5: names the commits and the measurement rules', () => {

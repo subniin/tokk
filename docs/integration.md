@@ -16,7 +16,7 @@ Measured values for the apps that use Tokk. A value that has not been measured s
 |---|---|---|---|---|---|---|
 | Hands-Free (task 22), commit e7d5083 | tongue click (`click`), hum and `background` | 17 lines | 2026-11-20 17:50:21 to 19:14:02, 1 h 24 min | about 135 (spec 24, implementation 24 + 87) | Wrote the spec, then the app. A model throttle error stopped the first implementation run, and a second run on another model resumed the same session. | Told Kiro to fix the template's sequential `teach()` handling instead of retrying on the "already open" error. Spotted that the "Heard" line showed "(ignored: listening is off)" under the ON banner, fixed in task 23. |
 | Knock Once for Yes (task 23), commit 2e29c2f | knock | 19 lines | 2026-11-20 19:16:00 to 21:13:10, 1 h 57 min | about 84 (spec 15, implementation 69) | Wrote the spec, then the app. Found and fixed by itself: the state line kept "Listening is paused" after a sound effect (seen in its own screenshot, failing test first), and the ending text was clipped at 320 px. | None. |
-| Third case (task 26) | not done yet | not done yet | not done yet | not done yet | not done yet | not done yet |
+| Slide deck (task 26), reveal.js 6.0.2 (MIT, credit in `cases/slides/README.md`), stage 1 commit f21a3b1 | clap. The claps in `cases/slides/sounds/` and the recordings are synthetic and only serve the Node tests. In the browser the user teaches their own claps on the first run. | 17 lines (`count:wiring`). The agent reported 12 non-blank lines (15 lines between the markers). The caption added 5 lines. | Start 2026-11-21 01:00:26 (stage 2a start). End not given. Duration not given. Stage 2a 01:00:26 to 01:04:42, stage 2b 01:05:07 to 01:05:39 (32 s), stage 2c not given. | About 5.0 (2a) + about 0.8 (2b) + 2c not given. Total not given. | Stage 2a (normal Kiro run): synthetic claps, recordings, model and the grammar tests. Stage 2b (the `integrator` custom agent, headless): stopped for nothing, wrote only the three named files, ran only `npx vitest run test/slides-events.test.ts` (2 passed), did not call the mcp-ears listen tool. Stage 2c (normal Kiro run): the caption, the button styling, the browser tests, the documents. | Nothing so far. `git diff --stat` of stage 2 against f21a3b1: not given. |
 
 ## Wiring lines
 
@@ -26,7 +26,7 @@ Output of `npm run count:wiring`.
 |---|---|
 | `apps/hands-free` | 17 |
 | `apps/knock-once` | 19 |
-| `cases/slides` | 0 |
+| `cases/slides` | 17 |
 | `examples/hello` | 7 |
 
 ## Shared template work
@@ -49,7 +49,7 @@ When the hello tests conflicted in task 21, the orchestrator chose minimal named
 | Wrong clicks | Hands-Free | Count wrong clicks while talking, with listening off and with listening on | 0 in 10 minutes of talking with listening off; at most 2 per hour with listening on | not measured yet |
 | Whole game by knocking | Knock Once for Yes | Play the whole game using knocks only | finished by knocking only | not measured yet |
 | One knock against two knocks | Knock Once for Yes | Share of correct answers, one knock against two knocks, in the filming room | 95 % or better | not measured yet |
-| Double clap | third case | Double clap triggers its action | defined by task 26 | not measured yet |
+| Double clap | third case | Teach the clap once in the deck, then clap twice 10 times and three times 10 times, and count the times the slide moved as the table says | at least 9 of 10 for each pattern | not measured yet |
 
 ## Synthetic sounds
 
