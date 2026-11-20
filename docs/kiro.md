@@ -27,6 +27,7 @@ Each task has a spec folder with three files: requirements, design and tasks. Th
 | `.kiro/specs/task-16-teach-dialog/` | Task 16, teach dialog |
 | `.kiro/specs/task-17-teach-page/` | Task 17, teach page |
 | `.kiro/specs/task-18-kiro-power/` | Task 18, this power, the agents and the template |
+| `.kiro/specs/task-19-hello/` | Task 19, hello example, README and package metadata |
 | `.kiro/specs/_new-app/` | Template: fill one table, Kiro writes the spec |
 
 ## Hooks

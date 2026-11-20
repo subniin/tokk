@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tokk hello</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; background: #fafafa; line-height: 1.5; }
+    button { font: inherit; padding: 0.5rem 1rem; color: #ffffff; background: #1d4ed8; border: 2px solid #1d4ed8; border-radius: 4px; cursor: pointer; }
+    button:focus-visible { outline: 3px solid #1a1a1a; outline-offset: 3px; }
+    #results { font-family: ui-monospace, monospace; min-height: 3rem; }
+    #error { color: #9b1c1c; }
+  </style>
+</head>
+<body>
+  <h1>Tokk hello</h1>
+  <p>Click the button, allow the microphone, stay quiet for one second, then make a short sound. Each sound and pattern that Tokk hears appears below as text.</p>
+  <p>This page uses a synthetic model built from synthetic sounds, so your own sounds will not match it. To replace it, teach real sounds with <code>teach.html</code> and pick <code>examples/hello</code> as the project folder.</p>
+  <button id="start" type="button">Start listening</button>
+  <p id="error" role="alert"></p>
+  <ul id="results" aria-live="polite" aria-label="Recognised sounds and patterns"></ul>
+  <script type="module">
+    // tokk:start
+    import { listen, loadSounds } from '/dist/tokk.js';
+    const show = (m) => results.append(Object.assign(document.createElement('li'), { textContent: `${m.pattern} at ${m.t.toFixed(2)} s` }));
+    const on = Object.fromEntries(['low', 'mid', 'high', 'ring', 'low _ mid'].map((pattern) => [pattern, show]));
+    start.onclick = async () => {
+      try { await listen({ sounds: await loadSounds('sounds.json'), on, debug: true }); }
+      catch (e) { error.textContent = e.message; }
+    };
+    // tokk:end
+  </script>
+</body>
+</html>

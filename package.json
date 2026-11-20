@@ -1,7 +1,33 @@
 {
     "name": "tokk",
-    "version": "1.0.0",
-    "description": "",
+    "version": "0.1.0",
+    "description": "A sound-event engine that lets an app react to short sounds such as a clap, a knock or a whistle, in the browser and in Node.",
+    "keywords": [
+        "sound",
+        "audio",
+        "microphone",
+        "sound control",
+        "clap",
+        "whistle",
+        "sound detection",
+        "audio events",
+        "web audio",
+        "tokk",
+        "mcp"
+    ],
+    "homepage": "https://github.com/subniin/tokk#readme",
+    "bugs": {
+        "url": "https://github.com/subniin/tokk/issues"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/subniin/tokk.git"
+    },
+    "author": "subniin",
+    "license": "MIT",
+    "engines": {
+        "node": ">=20"
+    },
     "main": "./dist/tokk.js",
     "types": "./dist/types/web/index.d.ts",
     "exports": {
@@ -27,24 +53,7 @@
     "directories": {
         "doc": "docs"
     },
-    "scripts": {
-        "build": "tsx scripts/build.ts",
-        "dev": "tsx scripts/build.ts --dev",
-        "test": "vitest run",
-        "test:quick": "vitest run --reporter dot",
-        "test:web": "playwright test",
-        "check:public-api": "tsx scripts/check-public-api.ts",
-        "pbt:quick": "tsx scripts/pbt-quick.ts",
-        "score": "tsx scripts/score.ts",
-        "mcp": "tsx tools/mcp-ears/server.ts",
-        "sounds:rebuild": "tsx scripts/sounds-rebuild.ts",
-        "synth:fixtures": "tsx scripts/make-synth-fixtures.ts",
-        "corpus-score": "tsx scripts/corpus-score.ts"
-    },
-    "keywords": [],
-    "author": "",
     "type": "module",
-    "license": "MIT",
     "devDependencies": {
         "@fast-check/vitest": "^0.5.0",
         "@modelcontextprotocol/sdk": "1.32.2",
@@ -56,5 +65,20 @@
         "typescript": "^7.0.2",
         "vitest": "^5.1.1",
         "zod": "4.6.7"
+    },
+    "scripts": {
+        "build": "tsx scripts/build.ts",
+        "prepack": "npm run build",
+        "dev": "tsx scripts/build.ts --dev",
+        "test": "vitest run",
+        "test:quick": "vitest run --reporter dot",
+        "test:web": "playwright test",
+        "check:public-api": "tsx scripts/check-public-api.ts",
+        "pbt:quick": "tsx scripts/pbt-quick.ts",
+        "score": "tsx scripts/score.ts",
+        "mcp": "tsx tools/mcp-ears/server.ts",
+        "sounds:rebuild": "tsx scripts/sounds-rebuild.ts",
+        "synth:fixtures": "tsx scripts/make-synth-fixtures.ts",
+        "corpus-score": "tsx scripts/corpus-score.ts"
     }
 }

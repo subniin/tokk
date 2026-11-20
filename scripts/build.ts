@@ -2,6 +2,8 @@
 //   npm run build   writes dist/tokk.js, dist/node.js, dist/mcp.js (the tokk-mcp bin, Task 18) and dist/types/**
 //   npm run dev     rebuilds dist/tokk.js and dist/teach-page.js (the developer page teach.html, Task 17) on every
 //                   save and serves the repository root on localhost. The package build does not write teach-page.js.
+// The package build (npm run build) minifies dist/tokk.js (with its embedded Worker and worklet) and dist/mcp.js (Task 19).
+// dist/node.js stays readable, and npm run dev does not minify. No source maps are shipped.
 // The script writes only below dist/, writes no source maps and sends nothing over the network.
 
 import { spawnSync } from 'node:child_process';
@@ -31,7 +33,7 @@ const SHARED_OPTIONS: BuildOptions = {
 };
 
 // Bundles web/worker.ts to one IIFE string, in memory. `inputs` lists the files it read.
-async function bundleWorker(): Promise<{ source: string; inputs: string[] }> {
+async function bundleWorker(minify: boolean): Promise<{ source: string; inputs: string[] }> {
   const result = await esbuild({
     absWorkingDir: ROOT,
     entryPoints: [join(ROOT, 'web', 'worker.ts')],
@@ -41,6 +43,7 @@ async function bundleWorker(): Promise<{ source: string; inputs: string[] }> {
     target: 'es2022',
     legalComments: 'none',
     logLevel: 'warning',
+    minify,
     write: false,
     metafile: true,
     outfile: join(DIST, 'worker.js'),   // names the output only; nothing is written
@@ -52,19 +55,20 @@ async function bundleWorker(): Promise<{ source: string; inputs: string[] }> {
   };
 }
 
-export async function bundleWorkerSource(): Promise<string> {
-  return (await bundleWorker()).source;
+// minify is false by default, the same default as workerSourcePlugin(), so the two return the same text.
+export async function bundleWorkerSource(minify = false): Promise<string> {
+  return (await bundleWorker(minify)).source;
 }
 
 // Resolves the reserved module `tokk:worker-source` to the Worker source as a string.
 // The Worker is bundled inside onLoad, so watch mode rebuilds it when a Worker file changes.
-export function workerSourcePlugin(): Plugin {
+export function workerSourcePlugin(minify = false): Plugin {
   return {
     name: 'tokk-worker-source',
     setup(b) {
       b.onResolve({ filter: /^tokk:worker-source$/ }, () => ({ path: WORKER_SOURCE_MODULE, namespace: WORKER_SOURCE_NAMESPACE }));
       b.onLoad({ filter: /.*/, namespace: WORKER_SOURCE_NAMESPACE }, async () => {
-        const { source, inputs } = await bundleWorker();
+        const { source, inputs } = await bundleWorker(minify);
         return { contents: `export default ${JSON.stringify(source)};`, loader: 'js', watchFiles: inputs };
       });
     },
@@ -78,6 +82,8 @@ const BROWSER_OPTIONS: BuildOptions = {
   platform: 'browser',
   plugins: [workerSourcePlugin()],
 };
+// The package build: the same, minified, with a minified Worker source inside.
+const BROWSER_PACKAGE_OPTIONS: BuildOptions = { ...BROWSER_OPTIONS, minify: true, plugins: [workerSourcePlugin(true)] };
 
 // The developer teach page (Task 17). Built by the dev server only: the npm package does not ship teach.html.
 const TEACH_PAGE_OPTIONS: BuildOptions = {
@@ -103,10 +109,11 @@ const MCP_OPTIONS: BuildOptions = {
   outfile: join(DIST, 'mcp.js'),
   platform: 'node',
   banner: { js: '#!/usr/bin/env node' },
+  minify: true,
 };
 
 export async function buildBundles(): Promise<void> {
-  await Promise.all([esbuild(BROWSER_OPTIONS), esbuild(NODE_OPTIONS), esbuild(MCP_OPTIONS)]);
+  await Promise.all([esbuild(BROWSER_PACKAGE_OPTIONS), esbuild(NODE_OPTIONS), esbuild(MCP_OPTIONS)]);
 }
 
 function emitDeclarations(): void {

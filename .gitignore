@@ -4,3 +4,4 @@ docs/_planning/
 test-results/
 playwright-report/
 test/web/generated/
+examples/hello/sounds/

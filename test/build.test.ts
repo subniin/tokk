@@ -10,6 +10,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { build as esbuild } from 'esbuild';
 import { WORKLET_PROCESSOR_NAME } from '../web/worklet-source';
 import { build, buildBundles, bundleWorkerSource, workerSourcePlugin } from '../scripts/build';
+import type { BuildOptions } from 'esbuild';
 import { TOOLS } from '../tools/mcp-ears/tools';
 import { findNodeGlobalUse } from './helpers/node-globals';
 
@@ -20,6 +21,8 @@ const NODE_CHILD_TIMEOUT_MS = 30_000;
 const MCP_START_TIMEOUT_MS = 30_000;   // Task 18: time allowed for the bundled server to start and answer
 const MCP_TEST_TIMEOUT_MS = 60_000;
 const UNSUPPORTED_RATE_HZ = 8000;
+// Task 19 (requirement 5): the minified browser and MCP bundles must be at most this share of an unminified build.
+const MINIFIED_MAX_SHARE_OF_UNMINIFIED = 0.75;   // ratio, no unit; the measured value is in design.md
 
 const ROOT = resolve('.');
 const TOKK_JS = join(ROOT, 'dist', 'tokk.js');
@@ -160,6 +163,39 @@ describe('dist/mcp.js (Task 18)', () => {
   }, MCP_TEST_TIMEOUT_MS);
 });
 
+// Task 19 (requirement 5, B7): the browser and MCP bundles are minified, dist/node.js is not.
+describe('minification (Task 19)', () => {
+  const SHARED: BuildOptions = {
+    absWorkingDir: ROOT, bundle: true, format: 'esm', target: 'es2022', legalComments: 'none', logLevel: 'silent', write: false, sourcemap: false,
+  };
+  const unminified = async (entry: string, platform: 'browser' | 'node', plugins: BuildOptions['plugins'] = []): Promise<string> => {
+    const r = await esbuild({ ...SHARED, entryPoints: [join(ROOT, entry)], outfile: join(ROOT, 'dist', 'unminified.js'), platform, plugins });
+    return (r.outputFiles ?? [])[0].text;
+  };
+
+  it('dist/tokk.js is at most MINIFIED_MAX_SHARE_OF_UNMINIFIED of an unminified build', async () => {
+    const plain = await unminified('web/index.ts', 'browser', [workerSourcePlugin()]);
+    expect(readFileSync(TOKK_JS, 'utf8').length).toBeLessThan(plain.length * MINIFIED_MAX_SHARE_OF_UNMINIFIED);
+  }, BUILD_TEST_TIMEOUT_MS);
+
+  it('dist/mcp.js is at most MINIFIED_MAX_SHARE_OF_UNMINIFIED of an unminified build', async () => {
+    const plain = await unminified('tools/mcp-ears/server.ts', 'node');
+    expect(readFileSync(MCP_JS, 'utf8').length).toBeLessThan((plain.length + '#!/usr/bin/env node\n'.length) * MINIFIED_MAX_SHARE_OF_UNMINIFIED);
+  }, BUILD_TEST_TIMEOUT_MS);
+
+  it('dist/node.js stays readable: it equals an unminified build', async () => {
+    expect(readFileSync(NODE_JS, 'utf8')).toBe(await unminified('node/index.ts', 'node'));
+  }, BUILD_TEST_TIMEOUT_MS);
+
+  it('the minified Worker source is shorter than the readable one and keeps the protocol strings', async () => {
+    const plain = await bundleWorkerSource();
+    const small = await bundleWorkerSource(true);
+    expect(small.length).toBeLessThan(plain.length * MINIFIED_MAX_SHARE_OF_UNMINIFIED);
+    expect(small).toContain('replaceSounds');
+    expect(small).not.toMatch(/^\\s*(?:import|export)\\b/m);
+  });
+});
+
 describe('Worker source', () => {
   function runWorker() {
     const listeners: ((event: { data: unknown }) => void)[] = [];
@@ -242,8 +278,9 @@ describe('Worker source', () => {
 
 describe('package contents', () => {
   // Task 18 (1.8, B4): dist/mcp.js is listed, and nothing under powers/ or .kiro/.
+  // Task 19 (B6): --ignore-scripts, so the prepack hook does not rebuild dist/ in the middle of the test run (package-meta.test.ts proves prepack exists); examples/ is forbidden.
   it('npm pack --dry-run lists only dist/**, package.json, README.md and LICENSE', () => {
-    const r = spawnSync('npm pack --dry-run --json', {
+    const r = spawnSync('npm pack --dry-run --ignore-scripts --json', {
       cwd: ROOT, encoding: 'utf8', shell: true, timeout: PACK_TEST_TIMEOUT_MS,
     });
     expect(r.status, r.stderr).toBe(0);
@@ -254,7 +291,7 @@ describe('package contents', () => {
     for (const required of ['dist/tokk.js', 'dist/node.js', 'dist/mcp.js', 'package.json', 'README.md', 'LICENSE']) {
       expect(files, required).toContain(required);
     }
-    for (const forbidden of ['test/', 'fixtures/', '.kiro/', 'powers/', 'core/', 'web/', 'node/', 'docs/']) {
+    for (const forbidden of ['test/', 'fixtures/', '.kiro/', 'powers/', 'core/', 'web/', 'node/', 'docs/', 'examples/']) {
       expect(files.filter((p) => p.startsWith(forbidden)), forbidden).toEqual([]);
     }
   }, PACK_TEST_TIMEOUT_MS);
