@@ -1,6 +1,6 @@
 ---
 inclusion: fileMatch
-fileMatchPattern: ["web/**/*", "teach.html", "examples/**/*", "apps/hands-free/**/*"]
+fileMatchPattern: ["web/**/*", "teach.html", "examples/**/*", "apps/hands-free/**/*", "cases/slides/**/*"]
 ---
 
 # UI rules

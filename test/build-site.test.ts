@@ -15,7 +15,9 @@ import { REPO_ROOT } from './web/paths';
 const SITE_BUILD_TIMEOUT_MS = 180_000;
 const TEXT_CONTRAST_MIN = 4.5;
 const FOCUS_OUTLINE_MIN_PX = 2;
-const LANDING_HREFS = ['teach.html', 'examples/hello/', 'apps/hands-free/', 'apps/knock-once/'];
+// Task 26 (named update): the landing page also links cases/slides/.
+const LANDING_HREFS = ['teach.html', 'examples/hello/', 'apps/hands-free/', 'apps/knock-once/', 'cases/slides/'];
+const CASE_LINK_WARNING = 'index.html links to "cases/slides/"';
 const SCRIPT = join(REPO_ROOT, 'scripts', 'build-site.ts');
 const TSX_URL = pathToFileURL(createRequire(import.meta.url).resolve('tsx')).href;
 
@@ -72,7 +74,9 @@ describe('the site build (Task 21)', () => {
   it('S1: the output holds exactly the expected files, and the result lists them with sizes', async () => {
     expect(listFiles(outDir)).toEqual(EXPECTED_FILES);
     expect([...firstFiles].sort()).toEqual(EXPECTED_FILES);
-    expect(warnings).toEqual([]);
+    // Task 26 (named update): with only an appsDir no case is copied, so the one dead link is the cases/slides/ link of the landing page.
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain(CASE_LINK_WARNING);
     for (const f of EXPECTED_FILES) expect(statSync(join(outDir, f)).size, f).toBeGreaterThan(0);
   });
 
@@ -169,10 +173,12 @@ describe('the site build (Task 21)', () => {
     temps.push(onlyOne);
     const out = tempDir('tokk-one-');
     const result = await buildSite({ outDir: out, appsDir: onlyOne });
-    expect(result.warnings).toHaveLength(1);
-    expect(result.warnings[0]).toContain('apps/knock-once/');
+    // Task 26 (named update): one more dead link, cases/slides/, because no casesDir is given.
+    expect(result.warnings).toHaveLength(2);
+    expect(result.warnings.filter((w) => w.includes('apps/knock-once/'))).toHaveLength(1);
+    expect(result.warnings.filter((w) => w.includes(CASE_LINK_WARNING))).toHaveLength(1);
     const none = await buildSite({ outDir: tempDir('tokk-none-'), appsDir: join(REPO_ROOT, 'no-such-apps') });
-    expect(none.warnings).toHaveLength(2);
+    expect(none.warnings).toHaveLength(3);
 
     const second = tempDir('tokk-second-');
     await buildSite({ outDir: second, appsDir });
@@ -185,5 +191,98 @@ describe('the site build (Task 21)', () => {
     expect(r.stdout).toMatch(/total/i);
     expect(`${r.stdout}${r.stderr}`).toContain('apps/knock-once/');
     expect(listFiles(cliOut)).toContain('apps/hands-free/dist/app.js');
+  }, SITE_BUILD_TIMEOUT_MS);
+});
+
+// Task 26 (U3): cases/<name> is copied and bundled like an app, without sounds.json.
+describe('the site build and cases (Task 26, U3)', () => {
+  const CASE_NAME = 'slides';
+  const LICENSE_NAME = 'LICENSE-revealjs.txt';
+  const EXPECTED_CASE_FILES = [
+    `cases/${CASE_NAME}/${LICENSE_NAME}`, `cases/${CASE_NAME}/dist/app.css`, `cases/${CASE_NAME}/dist/app.js`, `cases/${CASE_NAME}/index.html`,
+  ];
+  let casesDir = '';
+  let appsDir = '';
+  let outDir = '';
+  let withCases: string[] = [];
+
+  // A fixture case: real source that imports CSS, and extras that the site must not contain.
+  function makeFixtureCases(): string {
+    const dir = tempDir('tokk-cases-');
+    const put = (rel: string, text: string): void => {
+      mkdirSync(dirname(join(dir, CASE_NAME, rel)), { recursive: true });
+      writeFileSync(join(dir, CASE_NAME, rel), text);
+    };
+    put('index.html', ['<!doctype html>', '<html lang="en"><head><meta charset="utf-8"><title>Fixture case</title>', '<link rel="stylesheet" href="./dist/app.css"></head>', '<body><h1>Case</h1><script type="module" src="./dist/app.js"></script></body></html>', ''].join('\n'));
+    put('src/main.ts', "import './style.css';\nimport { NAME } from './constants';\ndocument.title = NAME;\n");
+    put('src/constants.ts', "export const NAME = 'fixture case';\n");
+    put('src/style.css', 'h1 { color: #111111; }\n');
+    put(LICENSE_NAME, 'Copyright (C) fixture\n');
+    put('sounds.json', '{"labels":{}}\n');
+    put('sounds/clap/clap-01.wav', 'RIFF');
+    put('recordings/clap-x2.wav', 'RIFF');
+    put('test/x.txt', 'x');
+    put('notes.md', '# notes\n');
+    put('README.md', '# readme\n');
+    put('extra.wav', 'RIFF');
+    put('.hidden', 'x');
+    return dir;
+  }
+
+  beforeAll(async () => {
+    casesDir = makeFixtureCases();
+    appsDir = makeFixtureApps();
+    temps.push(appsDir);
+    outDir = tempDir('tokk-site-cases-');
+    withCases = (await buildSite({ outDir, appsDir, casesDir })).files.map((f) => f.path);
+  }, SITE_BUILD_TIMEOUT_MS);
+
+  it('U3: a case is copied without sounds.json, src, recordings, test, .wav, .md and dot files, and the LICENSE copy stays', () => {
+    const files = listFiles(outDir).filter((f) => f.startsWith('cases/'));
+    expect(files).toEqual(EXPECTED_CASE_FILES);
+    expect([...withCases].filter((f) => f.startsWith('cases/')).sort()).toEqual(EXPECTED_CASE_FILES);
+    expect(files.filter((f) => /sounds|recordings|\/src\/|\.wav$|\.md$|\.ts$|\.map$/.test(f))).toEqual([]);
+    expect(readFileSync(join(outDir, 'cases', CASE_NAME, LICENSE_NAME), 'utf8')).toBe('Copyright (C) fixture\n');
+  });
+
+  it('U3: the bundle and its CSS are written, minified, and the CSS holds the imported rule', () => {
+    const js = readFileSync(join(outDir, 'cases', CASE_NAME, 'dist', 'app.js'), 'utf8');
+    expect(js).toContain('fixture case');
+    expect(js.split('\n').length).toBeLessThan(5);
+    expect(readFileSync(join(outDir, 'cases', CASE_NAME, 'dist', 'app.css'), 'utf8')).toMatch(/h1\s*\{\s*color:\s*#111/);
+  });
+
+  it('U3: every URL of the case output is relative, and the apps are still there', () => {
+    const problems = listFiles(outDir).filter((f) => f.startsWith('cases/')).flatMap((f) => scanSiteFile(f, readFileSync(join(outDir, f), 'utf8')));
+    expect(problems).toEqual([]);
+    expect(scanSiteFile('x.html', '<link rel="stylesheet" href="/dist/app.css">')).not.toEqual([]);
+    expect(listFiles(outDir)).toContain('apps/hands-free/dist/app.js');
+  });
+
+  it('U3: no case is copied when only appsDir is given, and the file list is the one of the app-only build', async () => {
+    const out = tempDir('tokk-site-nocases-');
+    await buildSite({ outDir: out, appsDir });
+    expect(listFiles(out)).toEqual(EXPECTED_FILES);
+    expect(listFiles(outDir).filter((f) => !f.startsWith('cases/'))).toEqual(EXPECTED_FILES);
+  }, SITE_BUILD_TIMEOUT_MS);
+
+  it('U3: a missing casesDir copies no case and does not fail', async () => {
+    const out = tempDir('tokk-site-nocasesdir-');
+    await buildSite({ outDir: out, appsDir, casesDir: join(REPO_ROOT, 'no-such-cases') });
+    expect(listFiles(out)).toEqual(EXPECTED_FILES);
+  }, SITE_BUILD_TIMEOUT_MS);
+
+  it('U3: a case that does not build names the case and fails', async () => {
+    const dir = makeFixtureCases();
+    writeFileSync(join(dir, CASE_NAME, 'src', 'main.ts'), "import { nothing } from './missing-file';\nconsole.log(nothing);\n");
+    await expect(buildSite({ outDir: tempDir('tokk-site-broken-'), appsDir, casesDir: dir })).rejects.toThrow(/Case "slides" failed to build/);
+  }, SITE_BUILD_TIMEOUT_MS);
+
+  it('U3: the CLI takes --cases-dir', () => {
+    const out = tempDir('tokk-cli-cases-');
+    const r = spawnSync(process.execPath, ['--import', TSX_URL, SCRIPT, '--out', out, '--apps-dir', appsDir, '--cases-dir', casesDir], { encoding: 'utf8', timeout: SITE_BUILD_TIMEOUT_MS });
+    expect(r.status, r.stderr).toBe(0);
+    expect(listFiles(out)).toContain('cases/slides/dist/app.js');
+    expect(`${r.stdout}${r.stderr}`).not.toContain('Warning');
   }, SITE_BUILD_TIMEOUT_MS);
 });

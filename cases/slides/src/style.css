@@ -1,0 +1,17 @@
+/* The only CSS of the case. reveal.js and its stock theme come from the package; this file does two things. */
+
+/* Motion (ui.md, requirement 3.4): the configuration in main.ts turns off the slide moves. The stock CSS still has
+   some transitions (controls, progress bar) and an animation (the control tutorial), so every one is turned off here.
+   `none` is the only value this file ever sets for a transition or an animation. */
+*,
+*::before,
+*::after {
+  transition: none !important;
+  animation: none !important;
+}
+
+/* Focus: the stock controls remove the outline of a focused button, so the keyboard user would not see where they are. */
+.reveal .controls button:focus-visible {
+  outline: 3px solid currentColor;
+  outline-offset: 2px;
+}

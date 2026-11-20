@@ -26,6 +26,7 @@ Output of `npm run count:wiring`.
 |---|---|
 | `apps/hands-free` | 17 |
 | `apps/knock-once` | 19 |
+| `cases/slides` | 0 |
 | `examples/hello` | 7 |
 
 ## Shared template work

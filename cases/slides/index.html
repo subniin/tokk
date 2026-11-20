@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tokk in six slides</title>
+  <link rel="stylesheet" href="./dist/app.css">
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+      <section>
+        <h1>Tokk</h1>
+        <p>Teach it a sound. Bind a pattern. Ship.</p>
+      </section>
+      <section>
+        <h2>What it is</h2>
+        <p>A small library that lets a web page react to short sounds, such as a knock or a whistle.</p>
+        <p>The sound model stays on the device that made it.</p>
+      </section>
+      <section>
+        <h2>Teach a sound</h2>
+        <p>Record about ten examples of one sound.</p>
+        <p>Tokk turns them into a small model of numbers, and the page can then tell that sound from the others.</p>
+      </section>
+      <section>
+        <h2>Bind a pattern</h2>
+        <p>A pattern is a few sounds in a row, and each pattern gets one action.</p>
+        <table>
+          <thead>
+            <tr><th scope="col">Pattern</th><th scope="col">Action</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>knock knock</td><td>answer yes</td></tr>
+            <tr><td>whistle, then knock</td><td>stop</td></tr>
+          </tbody>
+        </table>
+      </section>
+      <section>
+        <h2>Your audio stays here</h2>
+        <p>Nothing is sent anywhere.</p>
+        <p>The page keeps no recording. It keeps only numbers that describe each sound.</p>
+      </section>
+      <section>
+        <h2>Try it</h2>
+        <p>Move through this deck with the arrow keys, or with the buttons at the bottom right.</p>
+      </section>
+    </div>
+  </div>
+  <script type="module" src="./dist/app.js"></script>
+</body>
+</html>

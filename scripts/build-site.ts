@@ -1,6 +1,6 @@
 // The static site for GitHub Pages (Task 21).
-//   npm run build:site [-- --out <folder>] [-- --apps-dir <folder>]
-// Writes the landing page, teach.html, the hello example, every app and the two dist files they need below one output
+//   npm run build:site [-- --out <folder>] [-- --apps-dir <folder>] [-- --cases-dir <folder>]
+// Writes the landing page, teach.html, the hello example, every app, every case (Task 26) and the two dist files they need below one output
 // folder (default site/). Every URL in the output is relative, so the site works under /tokk/.
 // It writes straight into the output folder and never touches dist/, so a running dev server is not disturbed.
 // It reads files and writes below the output folder only, and sends nothing over the network.
@@ -9,11 +9,14 @@ import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync,
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build as esbuild } from 'esbuild';
-import { appBuildOptions, BROWSER_PACKAGE_OPTIONS, findApps, TEACH_PAGE_OPTIONS, workerSourcePlugin } from './build';
+import { appBuildOptions, BROWSER_PACKAGE_OPTIONS, failedApp, findApps, TEACH_PAGE_OPTIONS, workerSourcePlugin } from './build';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_OUT_DIR = join(ROOT, 'site');
 const DEFAULT_APPS_DIR = join(ROOT, 'apps');
+const DEFAULT_CASES_DIR = join(ROOT, 'cases');
+// A case folder never ships its sound model: the model of a case only serves a Node test, and its page teaches the user's own sound.
+export const CASE_SKIPPED_FILES = ['sounds.json'];
 
 // What never reaches the site, whatever an app puts beside its index.html (requirement 6.4). One list, one test per entry.
 export const SITE_DENY_LIST = {
@@ -42,13 +45,13 @@ function checkOutDir(outDir: string): void {
   if (existsSync(join(outDir, '.git'))) throw new Error(`The output folder ${outDir} holds a .git folder. Refusing to empty it.`);
 }
 
-function copyTree(from: string, to: string): void {
+function copyTree(from: string, to: string, skipFiles: string[] = []): void {
   mkdirSync(to, { recursive: true });
   for (const entry of readdirSync(from, { withFileTypes: true }).sort((a, b) => (a.name < b.name ? -1 : 1))) {
     const isDirectory = entry.isDirectory();
     if (isDenied(entry.name, isDirectory)) continue;
-    if (isDirectory) copyTree(join(from, entry.name), join(to, entry.name));
-    else if (entry.isFile()) copyFileSync(join(from, entry.name), join(to, entry.name));
+    if (isDirectory) copyTree(join(from, entry.name), join(to, entry.name), skipFiles);
+    else if (entry.isFile() && !skipFiles.includes(entry.name)) copyFileSync(join(from, entry.name), join(to, entry.name));
   }
 }
 
@@ -75,11 +78,15 @@ function deadLandingLinks(outDir: string): string[] {
   });
 }
 
-export async function buildSite(options: { outDir?: string; appsDir?: string } = {}): Promise<SiteResult> {
+// With an appsDir and no casesDir no case is copied (so a test with a fixture appsDir keeps its exact file list).
+// With neither, the real apps/ and cases/ folders are used.
+export async function buildSite(options: { outDir?: string; appsDir?: string; casesDir?: string } = {}): Promise<SiteResult> {
   const outDir = resolve(options.outDir ?? DEFAULT_OUT_DIR);
   const appsDir = resolve(options.appsDir ?? DEFAULT_APPS_DIR);
+  const casesDir = options.casesDir !== undefined ? resolve(options.casesDir) : options.appsDir === undefined ? DEFAULT_CASES_DIR : undefined;
   checkOutDir(outDir);
   const apps = findApps(appsDir);
+  const cases = casesDir === undefined ? [] : findApps(casesDir);
 
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });
@@ -92,12 +99,19 @@ export async function buildSite(options: { outDir?: string; appsDir?: string } =
     esbuild({ ...TEACH_PAGE_OPTIONS, outfile: join(outDir, 'dist', 'teach-page.js'), minify: true, plugins: [workerSourcePlugin(true)] }),
   ]);
   copyTree(join(ROOT, 'examples', 'hello'), join(outDir, 'examples', 'hello'));
-  for (const name of apps) {
-    copyTree(join(appsDir, name), join(outDir, 'apps', name));
-    try {
-      await esbuild(appBuildOptions(join(appsDir, name), { minify: true, outfile: join(outDir, 'apps', name, 'dist', 'app.js') }));
-    } catch (e) {
-      throw new Error(`App "${name}" failed to build: ${e instanceof Error ? e.message : String(e)}`);
+  const groups: { label: string; folder: string; from: string | undefined; names: string[]; skip: string[] }[] = [
+    { label: 'App', folder: 'apps', from: appsDir, names: apps, skip: [] },
+    { label: 'Case', folder: 'cases', from: casesDir, names: cases, skip: CASE_SKIPPED_FILES },
+  ];
+  for (const { label, folder, from, names, skip } of groups) {
+    for (const name of names) {
+      if (from === undefined) continue;
+      copyTree(join(from, name), join(outDir, folder, name), skip);
+      try {
+        await esbuild(appBuildOptions(join(from, name), { minify: true, outfile: join(outDir, folder, name, 'dist', 'app.js') }));
+      } catch (e) {
+        throw failedApp(name, e, label);
+      }
     }
   }
 
@@ -117,7 +131,7 @@ function flag(name: string): string | undefined {
 
 async function main(): Promise<void> {
   try {
-    await buildSite({ outDir: flag('--out'), appsDir: flag('--apps-dir') });
+    await buildSite({ outDir: flag('--out'), appsDir: flag('--apps-dir'), casesDir: flag('--cases-dir') });
   } catch (e) {
     console.error(`Site build failed: ${e instanceof Error ? e.message : String(e)}`);
     process.exit(1);

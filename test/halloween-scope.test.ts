@@ -76,6 +76,7 @@ describe('the Halloween steering file and its scope (U11)', () => {
   it('ui.md keeps its Halloween rule and its pattern, which leaves apps/knock-once/ out', () => {
     const ui = readFileSync(UI_STEERING, 'utf8');
     expect(ui).toContain('Put no Halloween elements in the template (`web/`, `teach.html`) or in app 1. Halloween styling lives in app 2\'s `halloween-ui.md` only.');
-    expect(frontMatter(ui)).toBe('inclusion: fileMatch\nfileMatchPattern: ["web/**/*", "teach.html", "examples/**/*", "apps/hands-free/**/*"]');
+    // Task 26 (named update): the pattern also covers the slides case, and still leaves apps/knock-once/ out.
+    expect(frontMatter(ui)).toBe('inclusion: fileMatch\nfileMatchPattern: ["web/**/*", "teach.html", "examples/**/*", "apps/hands-free/**/*", "cases/slides/**/*"]');
   });
 });

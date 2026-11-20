@@ -1,7 +1,8 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
-const APPS_DIR = 'apps';
+// The folders whose files are scanned (Task 21: apps, Task 26: cases). A missing folder is skipped.
+const SCANNED_DIRS = ['apps', 'cases'];
 const EXTENSIONS = ['.ts', '.tsx', '.js', '.mjs', '.html'];
 // Folders of this repository that an app must reach only through 'tokk' (Task 21: apps are bundled against web/index.ts).
 const INTERNAL_DIRS = ['core', 'web', 'node', 'tools'];
@@ -50,15 +51,15 @@ function walk(dir: string, out: string[]): void {
 }
 
 const root = process.cwd();
-const appsPath = join(root, APPS_DIR);
+const present = SCANNED_DIRS.filter((d) => existsSync(join(root, d)));
 
-if (!existsSync(appsPath)) {
-  console.log('public API check: no apps/ folder');
+if (present.length === 0) {
+  console.log(`public API check: ${SCANNED_DIRS.map((d) => `no ${d}/ folder`).join(' and ')}`);
   process.exit(0);
 }
 
 const files: string[] = [];
-walk(appsPath, files);
+for (const d of present) walk(join(root, d), files);
 
 let found = 0;
 for (const file of files) {
@@ -83,7 +84,7 @@ for (const file of files) {
 }
 
 if (found > 0) {
-  console.log(`${found} forbidden import(s) found. Apps must import from 'tokk' only.`);
+  console.log(`${found} forbidden import(s) found. Apps and cases must import from 'tokk' only.`);
   process.exit(1);
 }
 process.exit(0);

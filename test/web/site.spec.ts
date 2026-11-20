@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { buildSite } from '../../scripts/build-site';
 import { FIXTURE_APP_NAMES, FIXTURE_PROOF_TEXT, makeFixtureApps, removeFixtureApps } from '../helpers/fixture-apps';
+import { REPO_ROOT } from './paths';
 import { FAVICON_PATH, startSiteServer } from '../helpers/static-site-server';
 import type { SiteServer } from '../helpers/static-site-server';
 import { checkHelloPage, HELLO_TEST_TIMEOUT_MS } from './hello-check';
@@ -16,7 +17,8 @@ const SITE_PREFIX = '/tokk/';
 const SITE_BUILD_TIMEOUT_MS = 180_000;
 const SITE_TEST_TIMEOUT_MS = 60_000;
 const SITE_ELEMENT_TIMEOUT_MS = 15_000;
-const LANDING_HREFS = ['teach.html', 'examples/hello/', 'apps/hands-free/', 'apps/knock-once/'];
+// Task 26 (named update): the landing page also links cases/slides/, which the build below copies from the real cases/ folder.
+const LANDING_HREFS = ['teach.html', 'examples/hello/', 'apps/hands-free/', 'apps/knock-once/', 'cases/slides/'];
 
 let appsDir = '';
 let outDir = '';
@@ -26,7 +28,7 @@ test.beforeAll(async () => {
   test.setTimeout(SITE_BUILD_TIMEOUT_MS);
   appsDir = makeFixtureApps();
   outDir = mkdtempSync(join(tmpdir(), 'tokk-site-e2e-'));
-  await buildSite({ outDir, appsDir });
+  await buildSite({ outDir, appsDir, casesDir: join(REPO_ROOT, 'cases') });
   server = await startSiteServer(outDir, SITE_PREFIX);
 });
 

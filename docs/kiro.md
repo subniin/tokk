@@ -112,3 +112,4 @@ The operator checked these pages on 2026-11-20:
 | https://kiro.dev/docs/custom-agents/configuration-reference/ | Agent fields |
 | https://kiro.dev/docs/permissions/ | Permission rules |
 | `.kiro/specs/task-25-integration-doc/` | Task 25, `docs/integration.md` with the measured development values |
+| `.kiro/specs/task-26-slides-case/` | Task 26, the third case, a reveal.js slide deck (cases/slides) with sound control |

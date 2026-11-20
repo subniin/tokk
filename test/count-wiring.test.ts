@@ -132,3 +132,45 @@ describe('collectGroups and the CLI (Task 21)', () => {
     expect(hello).toMatchObject({ kind: 'example', lines: expected.lines, blocks: 1 });
   });
 });
+
+// Task 26 (U1): cases/<name>/src is a group of kind `case`, like apps/<name>/src.
+describe('collectGroups and cases/ (Task 26, U1)', () => {
+  const files = {
+    'apps/zeta/src/main.ts': block('a();'),
+    'cases/slides/src/main.ts': `x();\n${block('c();', 'd();')}\n`,
+    'cases/slides/src/more/deep.ts': block('e();'),
+    'cases/slides/dist/app.js': block('skipped();'),
+    'cases/slides/sounds/skip.js': block('skipped();'),
+    'cases/slides/index.html': block('not-in-src();'),
+    'cases/plain/src/main.ts': 'plain();\n',
+    'cases/README.md': block('md();'),
+    'examples/hello/index.html': `<script type="module">\n${block('go();')}\n</script>\n`,
+  };
+
+  it('U1: a case with markers is counted from its src folder and has the kind case', () => {
+    const slides = collectGroups(tree(files)).find((g) => g.name === 'cases/slides');
+    expect(slides).toMatchObject({ kind: 'case', lines: 3, blocks: 2 });
+    expect(slides?.files).toEqual([{ path: 'cases/slides/src/main.ts', lines: 2 }, { path: 'cases/slides/src/more/deep.ts', lines: 1 }]);
+  });
+
+  it('U1: a case without markers is reported as (no markers) with 0 lines', () => {
+    const groups = collectGroups(tree(files));
+    expect(groups.find((g) => g.name === 'cases/plain')).toMatchObject({ kind: 'case', lines: 0, blocks: 0, files: [] });
+    expect(formatReport(groups, false)).toContain('cases/plain  case  0 lines  (no markers)');
+  });
+
+  it('U1: groups of all kinds are sorted together, and apps and examples keep their kind and their lines', () => {
+    const groups = collectGroups(tree(files));
+    expect(groups.map((g) => [g.name, g.kind, g.lines])).toEqual([
+      ['apps/zeta', 'app', 1],
+      ['cases/plain', 'case', 0],
+      ['cases/slides', 'case', 3],
+      ['examples/hello', 'example', 1],
+    ]);
+  });
+
+  it('U1: a tree with no cases/ folder gives the same groups as before', () => {
+    const groups = collectGroups(tree({ 'apps/zeta/src/main.ts': block('a();'), 'examples/hello/index.html': block('go();') }));
+    expect(groups.map((g) => [g.name, g.kind, g.lines])).toEqual([['apps/zeta', 'app', 1], ['examples/hello', 'example', 1]]);
+  });
+});

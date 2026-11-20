@@ -117,6 +117,9 @@ const MCP_OPTIONS: BuildOptions = {
 const APPS_DIR = join(ROOT, 'apps');
 const APP_NAME_RULE = /^[a-z0-9-]+$/;
 const TOKK_ALIAS_TARGET = join(ROOT, 'web', 'index.ts');
+// Cases (Task 26): cases/<name>/src/main.ts is built exactly like an app, to cases/<name>/dist/app.js. A case is a
+// third-party app with Tokk added, so it follows the same name rule, the same options and the same alias.
+export const CASES_DIR = join(ROOT, 'cases');
 
 // Names of the apps below appsDir, sorted. A missing folder gives []. Files are skipped, a directory without
 // src/main.ts is skipped with a warning, and a name outside the rule throws.
@@ -152,24 +155,25 @@ export function appBuildOptions(appDir: string, opts: { minify: boolean; outfile
 }
 
 const appOutfile = (appsDir: string, name: string): string => join(appsDir, name, 'dist', 'app.js');
-const failedApp = (name: string, e: unknown): Error => new Error(`App "${name}" failed to build: ${e instanceof Error ? e.message : String(e)}`);
+// `label` is "App" for apps/ and "Case" for cases/.
+export const failedApp = (name: string, e: unknown, label = 'App'): Error => new Error(`${label} "${name}" failed to build: ${e instanceof Error ? e.message : String(e)}`);
 
 // Builds every app, minified, one after the other. A failure names the app and stops the build.
-export async function buildApps(appsDir: string = APPS_DIR): Promise<string[]> {
+export async function buildApps(appsDir: string = APPS_DIR, label = 'App'): Promise<string[]> {
   const names = findApps(appsDir);
   for (const name of names) {
     rmSync(join(appsDir, name, 'dist'), { recursive: true, force: true });
     try {
       await esbuild(appBuildOptions(join(appsDir, name), { minify: true, outfile: appOutfile(appsDir, name) }));
     } catch (e) {
-      throw failedApp(name, e);
+      throw failedApp(name, e, label);
     }
   }
   return names;
 }
 
 // One context per app, unminified, built once and then rebuilt on save. An app that fails at start fails the call.
-export async function watchApps(appsDir: string = APPS_DIR): Promise<{ apps: string[]; dispose(): Promise<void> }> {
+export async function watchApps(appsDir: string = APPS_DIR, label = 'App'): Promise<{ apps: string[]; dispose(): Promise<void> }> {
   const apps = findApps(appsDir);
   const contexts: { dispose(): Promise<void> }[] = [];
   const dispose = async (): Promise<void> => { await Promise.all(contexts.splice(0).map((c) => c.dispose())); };
@@ -181,7 +185,7 @@ export async function watchApps(appsDir: string = APPS_DIR): Promise<{ apps: str
       try {
         await ctx.rebuild();
       } catch (e) {
-        throw failedApp(name, e);
+        throw failedApp(name, e, label);
       }
       await ctx.watch();
     }
@@ -192,7 +196,7 @@ export async function watchApps(appsDir: string = APPS_DIR): Promise<{ apps: str
   return { apps, dispose };
 }
 export async function buildBundles(): Promise<void> {
-  await Promise.all([esbuild(BROWSER_PACKAGE_OPTIONS), esbuild(NODE_OPTIONS), esbuild(MCP_OPTIONS), buildApps()]);
+  await Promise.all([esbuild(BROWSER_PACKAGE_OPTIONS), esbuild(NODE_OPTIONS), esbuild(MCP_OPTIONS), buildApps(), buildApps(CASES_DIR, 'Case')]);
 }
 
 function emitDeclarations(): void {
@@ -217,7 +221,9 @@ async function dev(): Promise<void> {
   const ctx = await context(BROWSER_OPTIONS);
   const teachCtx = await context(TEACH_PAGE_OPTIONS);
   const appsHandle = await watchApps();
+  const casesHandle = await watchApps(CASES_DIR, 'Case').catch(async (e: unknown) => { await appsHandle.dispose(); throw e; });
   const stop = async () => {
+    await casesHandle.dispose();
     await appsHandle.dispose();
     await teachCtx.dispose();
     await ctx.dispose();
@@ -230,7 +236,7 @@ async function dev(): Promise<void> {
   await ctx.watch();
   await teachCtx.watch();
   const { port } = await ctx.serve({ servedir: ROOT, host: DEV_SERVER_HOST, port: DEV_SERVER_PORT });
-  console.log(`Serving ${ROOT} at http://${DEV_SERVER_HOST}:${port}/ (dist/tokk.js, dist/teach-page.js and ${appsHandle.apps.length} app bundle(s) are rebuilt on save; restart to add an app). Press Ctrl+C to stop.`);
+  console.log(`Serving ${ROOT} at http://${DEV_SERVER_HOST}:${port}/ (dist/tokk.js, dist/teach-page.js and ${appsHandle.apps.length} app and ${casesHandle.apps.length} case bundle(s) are rebuilt on save; restart to add an app or a case). Press Ctrl+C to stop.`);
 }
 
 async function main(): Promise<void> {

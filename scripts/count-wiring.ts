@@ -1,4 +1,4 @@
-// Counts the Tokk wiring lines of every app and example (Task 21).
+// Counts the Tokk wiring lines of every app, case and example (Task 21, Task 26).
 //   npm run count:wiring [-- --json]
 // The counted lines of a file are the lines strictly between a line that starts with `// tokk:start` and the next line
 // that starts with `// tokk:end`, minus blank lines and comment lines. The script reads files only and changes nothing.
@@ -23,7 +23,7 @@ export class WiringError extends Error {
 }
 export interface WiringCount { lines: number; blocks: number }
 export interface WiringFile { path: string; lines: number }
-export interface WiringGroup { name: string; kind: 'app' | 'example'; lines: number; blocks: number; files: WiringFile[] }
+export interface WiringGroup { name: string; kind: 'app' | 'case' | 'example'; lines: number; blocks: number; files: WiringFile[] }
 
 // Reads one line. Tells if it has code outside comments, and whether a block comment is still open at its end.
 function scanLine(line: string, startInComment: boolean): { hasCode: boolean; inComment: boolean } {
@@ -97,11 +97,12 @@ function walkFiles(dir: string, extensions: string[], out: string[]): void {
 
 const rel = (root: string, full: string): string => relative(root, full).split(sep).join('/');
 
-// Groups: apps/<name> (files below src/) and examples/<name>. Sorted by name; files sorted by path.
+// Groups: apps/<name> and cases/<name> (files below src/), and examples/<name>. Sorted by name; files sorted by path.
 export function collectGroups(root: string): WiringGroup[] {
   const groups: WiringGroup[] = [];
-  const kinds: { base: string; kind: 'app' | 'example'; sub: string; extensions: string[] }[] = [
+  const kinds: { base: string; kind: 'app' | 'case' | 'example'; sub: string; extensions: string[] }[] = [
     { base: 'apps', kind: 'app', sub: 'src', extensions: CODE_EXTENSIONS },
+    { base: 'cases', kind: 'case', sub: 'src', extensions: CODE_EXTENSIONS },
     { base: 'examples', kind: 'example', sub: '', extensions: EXAMPLE_EXTENSIONS },
   ];
   for (const { base, kind, sub, extensions } of kinds) {

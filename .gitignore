@@ -7,3 +7,4 @@ test/web/generated/
 examples/hello/sounds/
 site/
 apps/*/dist/
+cases/*/dist/

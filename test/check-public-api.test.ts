@@ -99,3 +99,65 @@ describe('check-public-api (Task 21)', () => {
     expect(run({ 'apps/demo/dist/app.js': "import x from '../../../web/listen';\n", 'apps/demo/node_modules/p/i.js': "import x from '../../../../../web/y';\n" }).status).toBe(0);
   }, CHILD_TIMEOUT_MS);
 });
+
+// Task 26 (U2): the same rules for files below cases/.
+describe('check-public-api and cases/ (Task 26, U2)', () => {
+  const CASE_MAIN = 'cases/slides/src/main.ts';
+
+  it.each([
+    ['../../../web/listen', 'a path into web/'],
+    ['../../../core/segment', 'a path into core/'],
+    ['../../../node/files', 'a path into node/'],
+    ['../../../tools/mcp-ears/server', 'a path into tools/'],
+    ['/core/segment', 'an absolute URL into core/'],
+    ['tokk/core', 'tokk/core'],
+    ['tokk/dist/tokk.js', 'tokk/dist/...'],
+    ['web/listen', 'the bare name web/...'],
+  ])('U2: %s in a case file is rejected (%s) with file and line', (spec) => {
+    const r = run(importing(spec, CASE_MAIN));
+    expect(r.status).toBe(1);
+    expect(r.output).toContain(`${CASE_MAIN}:2  ${spec}`);
+  }, CHILD_TIMEOUT_MS);
+
+  it.each([
+    ['reveal.js', 'the package'],
+    ['reveal.js/reveal.css', 'a documented CSS export'],
+    ['reveal.js/reset.css', 'a documented CSS export'],
+    ['reveal.js/theme/serif.css', 'a stock theme export'],
+    ['tokk', 'tokk'],
+    ['tokk/node', 'tokk/node'],
+    ['./constants', 'a file of the case'],
+  ])('U2: %s in a case file is allowed (%s)', (spec) => {
+    expect(run(importing(spec, CASE_MAIN)).status).toBe(0);
+  }, CHILD_TIMEOUT_MS);
+
+  it('U2: a missing apps/ folder does not fail and cases/ is still scanned', () => {
+    expect(run({ [CASE_MAIN]: "import Reveal from 'reveal.js';\n" }).status).toBe(0);
+    const bad = run(importing('../../../web/listen', CASE_MAIN));
+    expect(bad.status).toBe(1);
+    expect(bad.output).toContain(`${CASE_MAIN}:2`);
+  }, CHILD_TIMEOUT_MS);
+
+  it('U2: a missing cases/ folder does not fail and apps/ is still scanned', () => {
+    expect(run({ [MAIN]: "import { a } from 'tokk';\n" }).status).toBe(0);
+    expect(run(importing('../../../web/listen')).status).toBe(1);
+  }, CHILD_TIMEOUT_MS);
+
+  it('U2: both folders are scanned in one run, and both missing still passes', () => {
+    const r = run({ ...importing('../../../web/listen'), ...importing('../../../core/x', CASE_MAIN) });
+    expect(r.status).toBe(1);
+    expect(r.output).toContain(`${MAIN}:2`);
+    expect(r.output).toContain(`${CASE_MAIN}:2`);
+    const none = run({});
+    expect(none.status).toBe(0);
+    expect(none.output).toContain('no apps/ folder');
+    expect(none.output).toContain('no cases/ folder');
+  }, CHILD_TIMEOUT_MS);
+
+  it('U2: a case file under dist or node_modules is skipped, and an html module script is scanned', () => {
+    expect(run({ 'cases/slides/dist/app.js': "import x from '../../../web/listen';\n" }).status).toBe(0);
+    const bad = run({ 'cases/slides/index.html': ['<script type="module">', "  import { z } from '../../web/listen';", '</script>', ''].join('\n') });
+    expect(bad.status).toBe(1);
+    expect(bad.output).toContain('cases/slides/index.html:2  ../../web/listen');
+  }, CHILD_TIMEOUT_MS);
+});
