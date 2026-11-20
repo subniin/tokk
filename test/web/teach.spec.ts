@@ -142,6 +142,30 @@ test.describe('with the fake microphone playing the teaching file', () => {
     expect(await callCount(page)).toBe(WEB_TEST_TAP_COPIES);
   });
 
+  // Task 22, requirement 16 (E8): sequential teaching.
+  test('teach closes a finished dialog and starts the next, and still rejects while a dialog is recording', async ({ micPage: page }) => {
+    await open(page, { storageKey: uniqueKey() });
+    await teachTen(page, WEB_TEST_TEACH_COPIES);
+    // The first dialog shows only its saved screen. The next teach closes it and opens its own dialog.
+    await expect(page.locator(`${HOST} [data-role="saved"]`)).toHaveCount(1);
+    await page.evaluate(() => (window as unknown as TestWindow).tokkTest.teachStart('tap'));
+    await expect(page.locator(HOST)).toHaveCount(1);
+    await expect(page.locator(`${HOST} [data-role="saved"]`)).toHaveCount(0);
+    await expect(page.locator(action('done'))).toHaveCount(1);
+    expect((await outcome(page)).settled).toBe(false);
+
+    // This dialog is recording: it keeps rejecting with the existing error and stays as it is.
+    const call = (label: string) => page.evaluate((l) => (window as unknown as TestWindow).tokkTest.teachOutcome(l, { ui: true }), label);
+    expect(await call('clap')).toMatchObject({ ok: false, name: 'Error', message: expect.stringContaining('already open') });
+    await expect(page.locator(HOST)).toHaveCount(1);
+    await expect(page.locator(action('done'))).toHaveCount(1);
+    expect((await outcome(page)).settled).toBe(false);
+
+    await page.click(action('cancel'));
+    expect(await waitForOutcome(page)).toMatchObject({ ok: false, name: 'AbortError' });
+    await expect(page.locator(HOST)).toHaveCount(0);
+  });
+
   test('a reload with the same storageKey restores tap, another key and another shipped model do not', async ({ micPage: page }) => {
     const key = uniqueKey();
     await open(page, { storageKey: key });

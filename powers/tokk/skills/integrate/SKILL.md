@@ -73,6 +73,7 @@ if (!ears.labels.includes('hum')) await ears.teach('hum', { ui: true });
 - `ears.labels` lists the taught labels, sorted, with `hum` when a hum pitch was taught and without `background` (read `ears.sounds.examples` for that). An empty list means a first run.
 - The taught model is stored under `storageKey` and comes back on the next visit. A stored first-run model taught at another sample rate (another device) is ignored with a console warning.
 - A typical teach order is the sounds first, then `hum`, then `background`.
+- Teach several sounds in a row by awaiting `ears.teach()` one after the other. A dialog that shows only its saved screen is closed by the next call, and a dialog that is still recording or reviewing makes the next call reject.
 
 ## Events, waveform and page time
 ```ts

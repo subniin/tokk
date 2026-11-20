@@ -30,6 +30,7 @@ Each task has a spec folder with three files: requirements, design and tasks. Th
 | `.kiro/specs/task-19-hello/` | Task 19, hello example, README and package metadata |
 | `.kiro/specs/task-20-app-support/` | Task 20, first run without sounds, event hooks, `toPageTime` and dialog theming |
 | `.kiro/specs/task-21-site/` | Task 21, app bundles, static site and wiring line count |
+| `.kiro/specs/task-22-hands-free/` | Task 22, the Hands-Free app (apps/hands-free) |
 | `.kiro/specs/_new-app/` | Template: fill one table, Kiro writes the spec |
 
 ## Hooks

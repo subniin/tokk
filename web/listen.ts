@@ -221,6 +221,7 @@ export async function listen(options: ListenOptions): Promise<Ears> {
   let paused = false;
   let teaching = false;                      // the dialog is recording: matches are dropped, pause and resume are ignored
   let dialogOpen = false;                    // a dialog exists, also on its saved screen
+  let dialogSaved = false;                   // the dialog shows only its saved (finished) screen: the next teach closes it
   let dialogHandle: TeachDialogHandle | null = null;
   let abortTeach: (() => void) | null = null;
   let recordListener: ((msg: RecordMessage) => void) | null = null;
@@ -389,11 +390,15 @@ export async function listen(options: ListenOptions): Promise<Ears> {
     }
     if (closed) return Promise.reject(new Error('ears.teach(): listen() was stopped. Call listen() again first.'));
     if (paused) return Promise.reject(new Error('ears.teach(): listening is paused. Call ears.resume() first.'));
+    // A dialog that shows only its saved screen has nothing left to do: it closes (as if Close was pressed) and the new teach
+    // starts, so an app can await ears.teach() several times in a row. A dialog that records or reviews keeps rejecting.
+    if (dialogOpen && dialogSaved) dialogHandle?.destroy();
     if (dialogOpen) return Promise.reject(new Error('ears.teach(): a teach dialog is already open. Save or cancel it first.'));
     return new Promise<TeachReport>((resolve, reject) => {
       let saved = false;
       teaching = true;
       dialogOpen = true;
+      dialogSaved = false;
       withOverlay((o) => o.setState('teaching'));
       try {
         dialogHandle = mountTeachDialog({
@@ -405,6 +410,7 @@ export async function listen(options: ListenOptions): Promise<Ears> {
           onSave: (model, report) => {
             saved = true;
             teaching = false;
+            dialogSaved = true;
             const storedOk = adopt(model);
             resolve(report);
             return { stored: storedOk };
@@ -417,6 +423,7 @@ export async function listen(options: ListenOptions): Promise<Ears> {
           onClose: () => {
             teaching = false;
             dialogOpen = false;
+            dialogSaved = false;
             dialogHandle = null;
             abortTeach = null;
           },
@@ -428,6 +435,7 @@ export async function listen(options: ListenOptions): Promise<Ears> {
       } catch (e) {
         teaching = false;
         dialogOpen = false;
+        dialogSaved = false;
         withOverlay((o) => o.setState('listening'));
         reject(e);
       }
