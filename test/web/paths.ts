@@ -17,6 +17,7 @@ export const FIXTURE_TEACH_BASE_MODEL_PATH = resolve(GENERATED_DIR, 'sounds-low-
 export const FIXTURE_TEACH_PITCH_MODEL_PATH = resolve(GENERATED_DIR, 'sounds-low-mid-pitch.json');
 export const FIXTURE_PHASE_WAV_PATH = resolve(GENERATED_DIR, 'phase-test.wav');
 export const FIXTURE_TEACH_INFO_PATH = resolve(GENERATED_DIR, 'teach-info.json');
+export const TEACH_PAGE_SEED_DIR = resolve(GENERATED_DIR, 'teach-page-seed');   // holds sounds/<label>/<label>-01.wav of two labels
 
 // URLs below the served repository root.
 export const FIXTURE_WAV_URL = '/test/web/generated/listen-test.wav';
@@ -28,6 +29,7 @@ export const FIXTURE_TAP_WAV_URL = '/test/web/generated/tap-test.wav';
 export const FIXTURE_TEACH_BASE_MODEL_URL = '/test/web/generated/sounds-low-mid.json';
 export const PAGE_URL = '/test/web/listen.html';
 export const TEACH_PAGE_URL = '/test/web/teach.html';
+export const DEV_TEACH_PAGE_URL = '/teach.html';   // the developer page of Task 17, at the repository root
 
 // Chrome arguments for the fake microphone: the WAV plays once from the moment the stream is opened.
 export function fakeMicArgs(wavPath: string): string[] {

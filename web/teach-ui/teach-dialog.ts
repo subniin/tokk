@@ -14,7 +14,7 @@ import { OVERLAY_COLOURS as C } from '../overlay/theme';
 import type { WaveformView } from '../overlay/waveform';
 import type { WorkerToMain } from '../protocol';
 import type { RecordKind } from '../record-kind';
-import { countLine, exampleLine, limitLine, replaceLine, reportLines, savedLine, stepText } from './format';
+import { countLine, exampleLine, limitLine, replaceLine, reportLines, savedLine, savingLine, stepText } from './format';
 import { doneState, initialState, quietProgress, reduce, saveState, shouldUpdateProgress } from './state';
 import type { TeachAction, TeachExample, TeachState } from './state';
 
@@ -34,7 +34,10 @@ export interface TeachDialogOptions {
   examples: number;                 // the number of sounds asked for
   model: SoundModel;                // the current model: tells how many examples the label has now
   controller: TeachController;
-  onSave(model: SoundModel, report: TeachReport): { stored: boolean };
+  // Synchronous for listen(). A promise is for a page that writes files (Task 17): the saved screen says Saving...
+  // until it settles, then shows 	ext when given. A rejection counts as { stored: false, text: <the message> }.
+  onSave(model: SoundModel, report: TeachReport): { stored: boolean } | Promise<{ stored: boolean; text?: string }>;
+  existingLine?: string | null;     // replaces the line about existing examples; null shows no line
   onCancel(): void;                 // the user cancelled (button or Esc) before saving
   onClose?(): void;                 // the dialog is gone, whatever the way it closed
 }
@@ -132,6 +135,8 @@ export function mountTeachDialog(o: TeachDialogOptions): TeachDialogHandle {
   let lastProgressMs: number | null = null;
   let lastProgressValue = -1;
   let mql: MediaQueryList | null = null;
+  let saving = false;                // an asynchronous onSave is pending
+  let savedText: string | null = null;   // the text that onSave gave, shown in place of savedLine
 
   const host = el('div');
   host.setAttribute('data-tokk-teach', '');
@@ -160,6 +165,7 @@ export function mountTeachDialog(o: TeachDialogOptions): TeachDialogHandle {
   let reason: HTMLElement | null = null;
   let doneButton: HTMLButtonElement | null = null;
   let saveButton: HTMLButtonElement | null = null;
+  let closeButton: HTMLButtonElement | null = null;
   const items = new Map<string, HTMLLIElement>();   // one cell per example, built once so its thumbnail is drawn once
 
   const setText = (e: HTMLElement, text: string): void => { if (e.textContent !== text) e.textContent = text; };
@@ -179,7 +185,7 @@ export function mountTeachDialog(o: TeachDialogOptions): TeachDialogHandle {
   const requiredMs = (): number => (kind === 'hum' ? WEB_TEACH_HUM_RECORD_MS : WEB_TEACH_BACKGROUND_RECORD_MS);
 
   const buildLive = (): void => {
-    const notice = replaceLine({ label: o.label, kind, model: o.model });
+    const notice = o.existingLine !== undefined ? o.existingLine : replaceLine({ label: o.label, kind, model: o.model });
     const parts: HTMLElement[] = [];
     if (notice !== null) {
       const p = el('p', undefined, notice);
@@ -244,11 +250,15 @@ export function mountTeachDialog(o: TeachDialogOptions): TeachDialogHandle {
     doneButton = null;
   };
 
+  const savedNow = (): string => (saving ? savingLine() : savedText ?? savedLine(state.saveStored));
+
   const buildSaved = (): void => {
-    const saved = el('p', undefined, savedLine(state.saveStored));
+    const saved = el('p', undefined, savedNow());
     saved.setAttribute('data-role', 'saved');
     body.replaceChildren(lines(), saved);
-    footer.replaceChildren(button('close', 'Close'));
+    closeButton = button('close', 'Close');
+    closeButton.setAttribute('aria-disabled', saving ? 'true' : 'false');
+    footer.replaceChildren(closeButton);
     reason = null;
     saveButton = null;
     doneButton = null;
@@ -302,7 +312,8 @@ export function mountTeachDialog(o: TeachDialogOptions): TeachDialogHandle {
       if (saveButton !== null && reason !== null) setGate(saveButton, reason, saveState(state));
       else if (reason !== null) setText(reason, '');
     } else if (view === 'saved') {
-      setText(status, savedLine(state.saveStored));
+      setText(status, savedNow());
+      closeButton?.setAttribute('aria-disabled', saving ? 'true' : 'false');
     }
   };
 
@@ -329,7 +340,7 @@ export function mountTeachDialog(o: TeachDialogOptions): TeachDialogHandle {
     refresh();
     if (view === 'saved') {
       const saved = body.querySelector('[data-role="saved"]');
-      if (saved instanceof HTMLElement) setText(saved, savedLine(state.saveStored));
+      if (saved instanceof HTMLElement) setText(saved, savedNow());
     }
   };
 
@@ -352,7 +363,7 @@ export function mountTeachDialog(o: TeachDialogOptions): TeachDialogHandle {
     host.remove();
     items.clear();
     state = initialState({ label: o.label, target: o.examples });   // no example, thumbnail or model stays referenced
-    progress = count = list = limit = reason = doneButton = saveButton = null;
+    progress = count = list = limit = reason = doneButton = saveButton = closeButton = null;
     body.replaceChildren();
     footer.replaceChildren();
     if (previousFocus?.isConnected) previousFocus.focus();
@@ -368,6 +379,7 @@ export function mountTeachDialog(o: TeachDialogOptions): TeachDialogHandle {
 
   const onEsc = (e: Event): void => {
     e.preventDefault();   // one close path with one cleanup
+    if (saving) return;   // the files are being written
     if (state.phase === 'saved') destroy();
     else cancelRecording();
   };
@@ -389,12 +401,30 @@ export function mountTeachDialog(o: TeachDialogOptions): TeachDialogHandle {
     o.controller.end(model);
     let stored = false;
     try {
-      stored = o.onSave(model, report).stored;
+      const result = o.onSave(model, report);
+      if (typeof (result as Promise<unknown>).then === 'function') {
+        saving = true;
+        render();
+        void (result as Promise<{ stored: boolean; text?: string }>).then(settle, (e: unknown) => {
+          console.error('tokk: saving the taught model failed:', e);
+          settle({ stored: false, text: e instanceof Error ? e.message : String(e) });
+        });
+        return;
+      }
+      stored = (result as { stored: boolean }).stored;
     } catch (e) {
       console.error('tokk: saving the taught model failed:', e);
     }
     apply({ type: 'stored', ok: stored });
   };
+
+  function settle(r: { stored: boolean; text?: string }): void {
+    if (destroyed) return;
+    saving = false;
+    savedText = r.text ?? null;
+    apply({ type: 'stored', ok: r.stored });
+    render();   // the text may change although the state did not
+  }
 
   const onAgain = (): void => {
     o.controller.cancel();
@@ -420,7 +450,7 @@ export function mountTeachDialog(o: TeachDialogOptions): TeachDialogHandle {
       case 'save': if (!isDisabled(b)) onSave(); return;
       case 'again': onAgain(); return;
       case 'cancel': cancelRecording(); return;
-      case 'close': destroy(); return;
+      case 'close': if (!saving) destroy(); return;
       default:
     }
   }

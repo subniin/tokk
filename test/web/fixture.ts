@@ -2,7 +2,8 @@
 // set at 48 kHz, and a test WAV with one impact of each class. Nothing here is committed (the output folder is
 // git-ignored) and nothing here needs a network. The audio is synthetic, not recorded.
 
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import {
   NOISE_FLOOR_WARMUP_MS,
   SYNTH_FIXTURE_LEAD_MARGIN_MS,
@@ -22,6 +23,7 @@ import type { ImpactName } from '../helpers/engine-fixture';
 import {
   FIXTURE_LABELS_PATH, FIXTURE_MISMATCH_MODEL_PATH, FIXTURE_MODEL_PATH, FIXTURE_PHASE_WAV_PATH, FIXTURE_TAP_WAV_PATH, FIXTURE_TEACH_BASE_MODEL_PATH,
   FIXTURE_TEACH_FEW_WAV_PATH, FIXTURE_TEACH_INFO_PATH, FIXTURE_TEACH_PITCH_MODEL_PATH, FIXTURE_TEACH_WAV_PATH, FIXTURE_WAV_PATH, GENERATED_DIR,
+  TEACH_PAGE_SEED_DIR,
 } from './paths';
 
 // Test-only values.
@@ -164,4 +166,19 @@ export async function generateTeachFixtures(): Promise<TeachFixtureInfo> {
   const info: TeachFixtureInfo = { phaseDurationMs: phase.durationMs, teachDurationMs: teach.durationMs, teachFewDurationMs: few.durationMs, tapDurationMs: tap.durationMs, sampleRate: WEB_TEST_SAMPLE_RATE_HZ };
   await writeFile(FIXTURE_TEACH_INFO_PATH, JSON.stringify(info));
   return info;
+}
+// Task 17: the two existing labels of the teach page's project folder, as wav files at the teaching WAV's rate.
+export const WEB_TEST_SEED_LABELS = ['low', 'mid'];
+
+export async function generateTeachPageSeed(): Promise<string[]> {
+  await rm(TEACH_PAGE_SEED_DIR, { recursive: true, force: true });
+  const written: string[] = [];
+  for (const rec of teachingSet(WEB_TEST_SAMPLE_RATE_HZ).filter((r) => WEB_TEST_SEED_LABELS.includes(r.label))) {
+    const dir = join(TEACH_PAGE_SEED_DIR, 'sounds', rec.label);
+    await mkdir(dir, { recursive: true });
+    const path = join(dir, `-01.wav`);
+    await writeWavFile(path, rec.samples, rec.sampleRate);
+    written.push(path);
+  }
+  return written;
 }

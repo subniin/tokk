@@ -1,6 +1,7 @@
 // Build and dev server for the npm package (Task 13).
 //   npm run build   writes dist/tokk.js, dist/node.js and dist/types/**
-//   npm run dev     rebuilds dist/tokk.js on every save and serves the repository root on localhost
+//   npm run dev     rebuilds dist/tokk.js and dist/teach-page.js (the developer page teach.html, Task 17) on every
+//                   save and serves the repository root on localhost. The package build does not write teach-page.js.
 // The script writes only below dist/, writes no source maps and sends nothing over the network.
 
 import { spawnSync } from 'node:child_process';
@@ -78,6 +79,15 @@ const BROWSER_OPTIONS: BuildOptions = {
   plugins: [workerSourcePlugin()],
 };
 
+// The developer teach page (Task 17). Built by the dev server only: the npm package does not ship teach.html.
+const TEACH_PAGE_OPTIONS: BuildOptions = {
+  ...SHARED_OPTIONS,
+  entryPoints: [join(ROOT, 'web', 'teach-page.ts')],
+  outfile: join(DIST, 'teach-page.js'),
+  platform: 'browser',
+  plugins: [workerSourcePlugin()],
+};
+
 const NODE_OPTIONS: BuildOptions = {
   ...SHARED_OPTIONS,
   entryPoints: [join(ROOT, 'node', 'index.ts')],
@@ -109,16 +119,20 @@ export async function build(): Promise<void> {
 async function dev(): Promise<void> {
   rmSync(DIST, { recursive: true, force: true });
   const ctx = await context(BROWSER_OPTIONS);
+  const teachCtx = await context(TEACH_PAGE_OPTIONS);
   const stop = async () => {
+    await teachCtx.dispose();
     await ctx.dispose();
     process.exit(0);
   };
   process.on('SIGINT', stop);
   process.on('SIGTERM', stop);
   await ctx.rebuild();
+  await teachCtx.rebuild();
   await ctx.watch();
+  await teachCtx.watch();
   const { port } = await ctx.serve({ servedir: ROOT, host: DEV_SERVER_HOST, port: DEV_SERVER_PORT });
-  console.log(`Serving ${ROOT} at http://${DEV_SERVER_HOST}:${port}/ (dist/tokk.js is rebuilt on save). Press Ctrl+C to stop.`);
+  console.log(`Serving ${ROOT} at http://${DEV_SERVER_HOST}:${port}/ (dist/tokk.js and dist/teach-page.js are rebuilt on save). Press Ctrl+C to stop.`);
 }
 
 async function main(): Promise<void> {

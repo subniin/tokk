@@ -27,6 +27,9 @@ const TEXT_PAIRS: [string, string, string][] = [
   ['text on header', C.text, C.headerBackground],
   ['text on canvas', C.text, C.canvasBackground],
   ['warning text on warning background', C.warningText, C.warningBackground],
+  // Added by Task 17: the text of teach.html (page background, section background, link).
+  ['link on header (teach page section)', C.waveform, C.headerBackground],
+  ['link on panel (teach page)', C.waveform, C.panelBackground],
 ];
 
 const GRAPHIC_PAIRS: [string, string, string][] = [
@@ -40,6 +43,10 @@ const GRAPHIC_PAIRS: [string, string, string][] = [
   ['text on header (teach buttons)', C.text, C.headerBackground],
   ['focus outline on header', C.focusOutline, C.headerBackground],
   ['focus outline on panel', C.focusOutline, C.panelBackground],
+  // Added by Task 17: borders and focus outlines of teach.html.
+  ['background mark on header (teach page section border)', C.backgroundMark, C.headerBackground],
+  ['background mark on panel (teach page)', C.backgroundMark, C.panelBackground],
+  ['text on canvas (teach page input border)', C.text, C.canvasBackground],
   ...LABEL_PALETTE.map((c): [string, string, string] => [`label colour ${c} on canvas`, c, C.canvasBackground]),
 ];
 

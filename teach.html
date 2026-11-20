@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>tokk: teach a sound</title>
+  <style>
+    /* Colours are the values of web/overlay/theme.ts (contrast checked in test/overlay-theme.test.ts).
+       These rules stay on this page: the dialog and the overlay are in a Shadow DOM. No transition, no animation. */
+    * { box-sizing: border-box; transition: none; animation: none; }
+    body { margin: 0; padding: 24px; background: #14181f; color: #e8ecf1; font-family: system-ui, sans-serif; font-size: 16px; line-height: 1.5; }
+    main { max-width: 760px; margin: 0 auto; }
+    h1 { font-size: 1.75em; margin: 0 0 8px; }
+    h2 { font-size: 1.25em; margin: 0 0 8px; }
+    section { margin: 16px 0; padding: 16px; background: #232a35; border: 1px solid #9aa4b0; border-radius: 4px; }
+    p, ul, ol { margin: 8px 0; }
+    label { display: block; font-weight: 700; margin-bottom: 4px; }
+    input[type="text"] { font: inherit; color: #e8ecf1; background: #0d1117; border: 1px solid #e8ecf1; border-radius: 4px; padding: 4px 8px; min-height: 32px; width: 100%; max-width: 320px; }
+    input[aria-invalid="true"] { border-width: 2px; }
+    button { font: inherit; color: #e8ecf1; background: #14181f; border: 1px solid #e8ecf1; border-radius: 4px; padding: 4px 12px; min-height: 32px; cursor: pointer; }
+    button[aria-disabled="true"], button:disabled { border-style: dashed; cursor: not-allowed; }
+    a { color: #8fb8e8; }
+    .alert, .warning { padding: 4px 8px; background: #4a3a00; color: #ffe9a8; }
+    .alert:empty, .warning:empty { display: none; }
+    code { font-family: ui-monospace, monospace; }
+    button:focus-visible, input:focus-visible, a:focus-visible, h1:focus-visible { outline: 2px solid #ffd166; outline-offset: 2px; }
+    [hidden] { display: none; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Teach a sound</h1>
+    <p>A page for developers. It records a sound ten times, saves the recordings as wav files in your project folder, and writes sounds.json. Recordings stay on this computer.</p>
+
+    <section aria-labelledby="folder-title">
+      <h2 id="folder-title">Folder</h2>
+      <p id="folder-help">Pick the folder that holds sounds/ and sounds.json, for example examples/hello. The page writes sounds/&lt;name&gt;/&lt;name&gt;-NN.wav and sounds.json there and nowhere else.</p>
+      <p>
+        <button id="pick-folder" type="button" aria-describedby="folder-help">Pick project folder</button>
+        <button id="create-sounds" type="button" hidden>Create sounds folder</button>
+        <button id="reload-folder" type="button" hidden>Reload folder</button>
+      </p>
+      <p id="fallback" hidden>
+        <label for="load-folder">Load existing sounds (read only)</label>
+        <input id="load-folder" type="file" webkitdirectory>
+      </p>
+      <p id="folder-status" role="status"></p>
+      <ul id="folder-summary" aria-label="Sounds in the folder"></ul>
+    </section>
+
+    <section aria-labelledby="name-title">
+      <h2 id="name-title">Sound name</h2>
+      <label for="sound-name">Sound name</label>
+      <input id="sound-name" type="text" autocomplete="off" spellcheck="false" aria-describedby="name-alert name-note">
+      <p id="name-alert" class="alert" role="alert"></p>
+      <p id="name-note"></p>
+      <p id="existing-note" role="status"></p>
+      <p id="rate-warning" class="warning" role="status"></p>
+    </section>
+
+    <section aria-labelledby="record-title">
+      <h2 id="record-title">Record</h2>
+      <p><button id="record" type="button" aria-disabled="true" aria-describedby="record-reason">Record</button></p>
+      <p id="record-reason" role="status"></p>
+    </section>
+
+    <section id="result" aria-labelledby="result-title">
+      <h2 id="result-title">Result</h2>
+      <p id="result-status" role="status"></p>
+      <ul id="written" data-role="written" aria-label="Written files"></ul>
+      <p data-role="verify" id="verify"></p>
+      <p data-role="download-help" id="download-help"></p>
+      <ul id="downloads" aria-label="Downloads"></ul>
+    </section>
+
+    <section aria-labelledby="test-title">
+      <h2 id="test-title">Test now</h2>
+      <p>Listens with the new model and shows every sound in the debug panel.</p>
+      <p>
+        <button id="test-now" type="button" aria-disabled="true">Test now</button>
+        <button id="test-stop" type="button" aria-disabled="true">Stop</button>
+      </p>
+      <p id="test-status" role="status"></p>
+    </section>
+  </main>
+  <script type="module" src="/dist/teach-page.js"></script>
+</body>
+</html>

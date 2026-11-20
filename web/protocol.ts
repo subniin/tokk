@@ -4,7 +4,8 @@
 import { createEngine } from '../core/engine';
 import type { Engine, EngineEvent, Handlers } from '../core/engine';
 import { MIN_EXAMPLES_PER_LABEL } from '../core/constants';
-import { retrainLabel } from '../core/teach';
+import { buildClips } from './clips';
+import { teachFromRecordings, retrainLabel } from '../core/teach';
 import type { Recording, TeachReport } from '../core/teach';
 import type { ClassifyResult, MatchEvent, SoundModel } from '../core/types';
 import { WEB_ENVELOPE_RESOLUTION_MS, WEB_TEACH_FILE_NAME, WEB_TEACH_MAX_RECORDING_MS } from './constants';
@@ -27,16 +28,17 @@ export interface MessagePortLike {
 }
 
 export type MainToWorker =
-  | { type: 'init'; sounds: SoundModel; sampleRate: number; patterns: Record<string, string[]>; mode: string }
+  | { type: 'init'; sounds: SoundModel | null; sampleRate: number; patterns: Record<string, string[]>; mode: string; recordOnly?: boolean }
   | { type: 'chunk'; samples: Float32Array }
   | { type: 'setMode'; name: string }
   | { type: 'flush' }
   | { type: 'replaceSounds'; sounds: SoundModel }
   | { type: 'connect'; port: MessagePortLike }
   | { type: 'record-start'; label: string; kind: RecordKind }
-  | { type: 'record-stop'; deleted: string[] }
+  | { type: 'record-stop'; deleted: string[]; clips?: boolean }
   | { type: 'record-end'; sounds: SoundModel }
-  | { type: 'record-cancel' };
+  | { type: 'record-cancel' }
+  | { type: 'teach-recordings'; requestId: number; recordings: Recording[]; emptyFolders: string[] };
 
 export type WorkerToMain =
   | { type: 'match'; pattern: string; event: MatchEvent }
@@ -46,6 +48,9 @@ export type WorkerToMain =
   | RecordOut
   | { type: 'record-trained'; model: SoundModel; report: TeachReport }
   | { type: 'record-failed'; message: string }
+  | { type: 'record-clips'; label: string; sampleRate: number; clips: { id: string; samples: Float32Array }[] }
+  | { type: 'teach-result'; requestId: number; model: SoundModel; report: TeachReport }
+  | { type: 'teach-failed'; requestId: number; message: string; counts: Record<string, number> | null }
   | { type: 'error'; message: string };
 
 export interface WorkerState {
@@ -53,6 +58,7 @@ export interface WorkerState {
   sounds: SoundModel | null;   // the current model: set by init, replaceSounds and record-end
   recorder: Recorder | null;  // not null while a teaching recording is open
   sampleRate: number;
+  recordOnly: boolean;       // set by a record-only init: no engine, only recording and teach-recordings
   patterns: Record<string, string[]>;
   mode: string;
   binSamples: number;
@@ -65,7 +71,7 @@ export interface WorkerState {
 
 export function createWorkerState(): WorkerState {
   return {
-    engine: null, sounds: null, recorder: null, sampleRate: 0, patterns: {}, mode: '', binSamples: 1,
+    engine: null, sounds: null, recorder: null, sampleRate: 0, recordOnly: false, patterns: {}, mode: '', binSamples: 1,
     binsDone: 0, partialCount: 0, partialMin: Infinity, partialMax: -Infinity, out: [],
   };
 }
@@ -131,10 +137,18 @@ function trainingFailure(label: string, e: unknown): string {
 }
 
 // Closes the recording (flush, retrain with the kept ids) and answers with the model, or with the reason it failed.
-function stopRecording(state: WorkerState, deleted: string[]): void {
+function stopRecording(state: WorkerState, deleted: string[], clips: boolean): void {
   const recorder = state.recorder as Recorder;
-  const { out, samples, ids } = recorder.finish();
+  const { out, samples, ids, segments } = recorder.finish();
   state.out.push(...out);
+  if (clips) {   // the page trains on its own folder (teach-recordings), so nothing is trained here
+    const gone = new Set(deleted);
+    state.out.push({
+      type: 'record-clips', label: recorder.label, sampleRate: state.sampleRate,
+      clips: buildClips({ label: recorder.label, kind: recorder.kind, samples, sampleRate: state.sampleRate, segments, keptIds: ids.filter((id) => !gone.has(id)) }),
+    });
+    return;
+  }
   const recording: Recording = { label: recorder.label, file: WEB_TEACH_FILE_NAME, samples, sampleRate: state.sampleRate };
   const gone = new Set(deleted);
   const keep = recorder.kind === 'sound' ? ids.filter((id) => !gone.has(id)) : undefined;
@@ -143,6 +157,22 @@ function stopRecording(state: WorkerState, deleted: string[]): void {
     state.out.push({ type: 'record-trained', model, report });
   } catch (e) {
     state.out.push({ type: 'record-failed', message: trainingFailure(recorder.label, e) });
+  }
+}
+
+// Trains a whole folder at once, as sounds:rebuild does. Works in any state.
+function teachRecordings(state: WorkerState, m: { requestId: number; recordings: Recording[]; emptyFolders: string[] }): void {
+  if (!Array.isArray(m.recordings) || !Array.isArray(m.emptyFolders)) throw new Error('teach-recordings needs recordings and emptyFolders.');
+  try {
+    const { model, report } = teachFromRecordings(m.recordings, { emptyFolders: m.emptyFolders });
+    state.out.push({ type: 'teach-result', requestId: m.requestId, model, report });
+  } catch (e) {
+    if (e instanceof Error && e.name === 'TooFewExamplesError') {
+      const counts = (e as Error & { counts: Record<string, number> }).counts;
+      state.out.push({ type: 'teach-failed', requestId: m.requestId, counts, message: `Tokk needs at least ${MIN_EXAMPLES_PER_LABEL} examples of every sound to learn it. (${e.message})` });
+    } else {
+      state.out.push({ type: 'teach-failed', requestId: m.requestId, counts: null, message: `Tokk could not learn from these recordings: ${errorMessage(e)}` });
+    }
   }
 }
 
@@ -155,16 +185,24 @@ function handle(state: WorkerState, msg: unknown): void {
     case 'init': {
       state.engine = null;
       state.recorder = null;
+      state.recordOnly = m.recordOnly === true;
       state.sampleRate = m.sampleRate as number;
       state.patterns = m.patterns as Record<string, string[]>;
       state.mode = m.mode as string;
       state.binSamples = msToSamples(WEB_ENVELOPE_RESOLUTION_MS, state.sampleRate);
       resetEnvelope(state);
-      state.sounds = m.sounds as SoundModel;
+      state.sounds = m.sounds as SoundModel | null;
+      if (state.recordOnly) return;   // no engine: patterns never run in this Worker
+      if (state.sounds === null) throw new Error('init needs a model, unless it is record-only.');
       state.engine = buildEngine(state, state.sounds);
       return;
     }
     case 'chunk': {
+      if (state.recordOnly) {
+        if (!(m.samples instanceof Float32Array)) throw new Error('A chunk needs samples as a Float32Array.');
+        if (state.recorder !== null) state.out.push(...state.recorder.push(m.samples));   // outside a recording the chunk is dropped
+        return;
+      }
       if (state.engine === null) throw new Error('Send init before the first chunk.');
       if (!(m.samples instanceof Float32Array)) throw new Error('A chunk needs samples as a Float32Array.');
       if (state.recorder !== null) {   // a recording is open: the chunk goes to the recorder only, not to the engine or the envelope
@@ -177,18 +215,21 @@ function handle(state: WorkerState, msg: unknown): void {
       return;
     }
     case 'setMode': {
+      if (state.recordOnly) throw new Error('setMode is not available in a record-only Worker.');
       if (state.engine === null) throw new Error('Send init before setMode.');
       state.engine.setMode(m.name as string);
       state.mode = m.name as string;
       return;
     }
     case 'flush': {
+      if (state.recordOnly) throw new Error('flush is not available in a record-only Worker.');
       if (state.engine === null) throw new Error('Send init before flush.');
       if (state.recorder !== null) return;   // the end of a WAV source while a recording is open: the engine is not used
       state.engine.flush();
       return;
     }
     case 'replaceSounds': {
+      if (state.recordOnly) throw new Error('replaceSounds is not available in a record-only Worker.');
       if (state.engine === null) throw new Error('Send init before replaceSounds.');
       // The core engine takes its model once, so a new engine is built. Its clock and its calibration restart.
       state.sounds = m.sounds as SoundModel;
@@ -196,7 +237,8 @@ function handle(state: WorkerState, msg: unknown): void {
       return;
     }
     case 'record-start': {
-      if (state.engine === null || state.sounds === null) throw new Error('Send init before record-start.');
+      if (state.engine === null && !state.recordOnly) throw new Error('Send init before record-start.');
+      if (state.sounds === null && !state.recordOnly) throw new Error('Send init before record-start.');
       if (state.recorder !== null) throw new Error('A recording is already open. Send record-end or record-cancel first.');
       if (typeof m.label !== 'string' || m.label === '') throw new Error('record-start needs a label.');
       // The kind comes from the label. A `kind` that disagrees is ignored.
@@ -208,7 +250,7 @@ function handle(state: WorkerState, msg: unknown): void {
     case 'record-stop': {
       if (state.recorder === null) throw new Error('No recording is open. Send record-start first.');
       if (!Array.isArray(m.deleted)) throw new Error('record-stop needs the list of deleted ids.');
-      stopRecording(state, m.deleted as string[]);
+      stopRecording(state, m.deleted as string[], m.clips === true);
       return;
     }
     case 'record-end': {
@@ -216,6 +258,7 @@ function handle(state: WorkerState, msg: unknown): void {
       if (typeof m.sounds !== 'object' || m.sounds === null) throw new Error('record-end needs the model to use.');
       state.recorder = null;
       state.sounds = m.sounds as SoundModel;
+      if (state.recordOnly) return;
       resetEnvelope(state);
       state.engine = buildEngine(state, state.sounds);
       return;
@@ -223,8 +266,13 @@ function handle(state: WorkerState, msg: unknown): void {
     case 'record-cancel': {
       if (state.recorder === null) throw new Error('No recording is open. Send record-start first.');
       state.recorder = null;
+      if (state.recordOnly) return;
       resetEnvelope(state);
       state.engine = buildEngine(state, state.sounds as SoundModel);
+      return;
+    }
+    case 'teach-recordings': {
+      teachRecordings(state, m as unknown as { requestId: number; recordings: Recording[]; emptyFolders: string[] });
       return;
     }
     case 'connect':
@@ -250,5 +298,6 @@ export function handleWorkerMessage(state: WorkerState, msg: unknown): WorkerToM
 
 // The buffers that worker.ts transfers with a message.
 export function transferListOf(msg: WorkerToMain): ArrayBuffer[] {
+  if (msg.type === 'record-clips') return msg.clips.map((c) => c.samples.buffer as ArrayBuffer);
   return msg.type === 'envelope' || msg.type === 'record-segment' ? [msg.min.buffer as ArrayBuffer, msg.max.buffer as ArrayBuffer] : [];
 }

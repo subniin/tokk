@@ -77,6 +77,11 @@ export function savedLine(stored: boolean | null): string {
   return stored === false ? 'Saved for this session only. The browser did not allow storing it.' : 'Saved.';
 }
 
+// Shown on the saved screen while an asynchronous save is pending (Task 17).
+export function savingLine(): string {
+  return 'Saving...';
+}
+
 // Shown when the recorder stopped collecting at the longest recording.
 export function limitLine(): string {
   const minutes = WEB_TEACH_MAX_RECORDING_MS / MS_PER_SECOND / SECONDS_PER_MINUTE;

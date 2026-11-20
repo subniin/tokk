@@ -36,3 +36,11 @@ export const WEB_TEACH_TIME_DECIMALS = 2;                      // decimals of a 
 export const WEB_TEACH_FOCUS_OUTLINE_PX = 2;
 export const WEB_STORAGE_KEY_DEFAULT = 'tokk:sounds';
 export const WEB_STORAGE_VERSION = 1;                          // version of the stored entry, no unit
+
+// Developer teach page (Task 17).
+export const WEB_TEACH_PAGE_CLIP_MARGIN_MS = 100;              // quiet kept before and after a segment in its clip
+export const WEB_TEACH_PAGE_NUMBER_DIGITS = 2;                 // a count of digits, no unit
+export const WEB_TEACH_PAGE_SOUNDS_DIR = 'sounds';             // child of the project folder that holds the label folders
+export const WEB_TEACH_PAGE_MODEL_FILE = 'sounds.json';        // child of the project folder
+export const WEB_TEACH_PAGE_PICKER_ID = 'tokk-teach-page';     // lets the browser remember the last folder
+export const WEB_TEACH_PAGE_TEST_STORAGE_KEY = 'tokk:teach-page';

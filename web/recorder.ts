@@ -17,7 +17,7 @@ export interface Recorder {
   readonly kind: RecordKind;
   push(chunk: Float32Array): RecordOut[];
   // Flushes the Segmenter and stops collecting. `samples` is the whole recording, `ids` the ids of all segments sent.
-  finish(): { out: RecordOut[]; samples: Float32Array; ids: string[] };
+  finish(): { out: RecordOut[]; samples: Float32Array; ids: string[]; segments: { id: string; t: number; durationMs: number }[] };
 }
 
 // Min and max of `bins` near equal slices of the samples (fewer when there are fewer samples). Raw, not normalised.
@@ -43,6 +43,7 @@ export function thumbnailOf(samples: Float32Array, bins: number): { min: Float32
 export function createRecorder(o: { label: string; kind: RecordKind; sampleRate: number; maxSamples: number }): Recorder {
   const chunks: Float32Array[] = [];
   const ids: string[] = [];
+  const found: { id: string; t: number; durationMs: number }[] = [];   // every segment sent, for the clips of Task 17
   const segmenter = o.kind === 'sound' ? new Segmenter(o.sampleRate) : null;
   let count = 0;            // samples collected so far
   let limitSent = false;
@@ -51,6 +52,7 @@ export function createRecorder(o: { label: string; kind: RecordKind; sampleRate:
   const segmentMessages = (segments: Segment[]): RecordOut[] => segments.map((seg) => {
     const id = `${o.label}/${WEB_TEACH_FILE_NAME}#${ids.length}`;
     ids.push(id);
+    found.push({ id, t: seg.t, durationMs: seg.durationMs });
     const { min, max } = thumbnailOf(seg.samples, WEB_TEACH_THUMBNAIL_BINS);
     return { type: 'record-segment', id, t: seg.t, durationMs: seg.durationMs, min, max };
   });
@@ -83,7 +85,7 @@ export function createRecorder(o: { label: string; kind: RecordKind; sampleRate:
         at += c.length;
       }
       chunks.length = 0;
-      return { out, samples, ids: [...ids] };
+      return { out, samples, ids: [...ids], segments: found.map((s) => ({ ...s })) };
     },
   };
 }
