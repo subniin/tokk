@@ -13,5 +13,6 @@ Each app is a small web page that uses Tokk. The two apps of plan 3 are `hands-f
 - `npm run dev` serves the app at `/apps/<name>/index.html` on `http://localhost:5173` and rebuilds it on save. A new app folder needs a restart of the dev server.
 - `npm run build:site` puts the app into `site/` (the folder GitHub Pages serves) together with the landing page, `teach.html` and the hello example.
 - Every URL in the app is relative (no leading `/`, no scheme), so the page works under `/tokk/` on Pages.
+- The table that maps patterns to actions is a TypeScript object: the `on` table that `listen` takes, written inside the tokk block. It is not a YAML file.
 - A case in `cases/<name>/` follows the same rules and is built and checked the same way. See `cases/slides/README.md`.
 - A new app must be linked from `site-src/index.html`. Until the folder exists, `npm run build:site` prints a warning for the dead link and still finishes.

@@ -32,6 +32,7 @@ Each task has a spec folder with three files: requirements, design and tasks. Th
 | `.kiro/specs/task-21-site/` | Task 21, app bundles, static site and wiring line count |
 | `.kiro/specs/task-22-hands-free/` | Task 22, the Hands-Free app (apps/hands-free) |
 | `.kiro/specs/task-23-knock-once/` | Task 23, the Knock Once for Yes app (apps/knock-once) and the Hands-Free "Heard:" fix |
+| `.kiro/specs/task-27-readme/` | Task 27, the README for the template and the three cases |
 | `.kiro/specs/_new-app/` | Template: fill one table, Kiro writes the spec |
 
 ## Hooks
