@@ -19,6 +19,8 @@ Kiro cannot record sound. A person records every new WAV file.
    - what to put into `background` (room noise, keyboard, speech);
    - which threshold to change, in ms, Hz or dB with the unit named. A person changes `core/constants.ts`; do not edit it.
 
+The `score` tool does not print `nearest.id`, so run `teach` first when example ids are needed.
+
 ## Rules
 - Never use the same recordings to teach `background` and to test it.
 - Never claim to have recorded sound.
