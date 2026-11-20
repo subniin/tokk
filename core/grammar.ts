@@ -51,7 +51,9 @@ export function parsePattern(src: string): PatternToken[] {
   return words.map((w): PatternToken => (w === REST_TOKEN ? { type: 'rest' } : { type: 'sound', label: w }));
 }
 
-function compile(patterns: string[], baselineHz: number | undefined): Compiled {
+// A hum pattern (hum.rise, hum.fall) without a baseline is inert: it is kept and never matches (Task 20). To give it a
+// baseline, build the matcher again; the engine does so when the model changes, because it builds a new matcher then.
+function compile(patterns: string[]): Compiled {
   const seen = new Map<string, string>();
   const out: Compiled = { sound: [], hum: {} };
   for (const src of patterns) {
@@ -62,9 +64,7 @@ function compile(patterns: string[], baselineHz: number | undefined): Compiled {
     seen.set(key, src);
     const first = tokens[0];
     if (first.type === 'sound' && first.label.startsWith(HUM_PREFIX)) {
-      if (baselineHz === undefined) {
-        throw new RangeError(`Hum pattern "${src}" needs baselineHz, but none was given`);
-      }
+      // Kept also without a baseline: pushContinuous then returns no match (the pattern is inert).
       if (first.label === HUM_RISE) out.hum.rise = src;
       else out.hum.fall = src;
       continue;
@@ -122,11 +122,11 @@ export class Matcher {
   constructor(patterns: string[], baselineHz?: number) {
     checkBaseline(baselineHz);
     this.baselineHz = baselineHz;
-    this.apply(compile(patterns, baselineHz));
+    this.apply(compile(patterns));
   }
 
   setPatterns(patterns: string[]): void {
-    const compiled = compile(patterns, this.baselineHz);
+    const compiled = compile(patterns);
     this.apply(compiled);
     this.pending = [];
   }

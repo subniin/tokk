@@ -34,6 +34,8 @@ export const WEB_TEACH_FONT_SIZE_PX = 16;
 export const WEB_TEACH_WIDTH_PX = 480;
 export const WEB_TEACH_TIME_DECIMALS = 2;                      // decimals of a time in s
 export const WEB_TEACH_FOCUS_OUTLINE_PX = 2;
+export const WEB_TEACH_RADIUS_PX = 4;                          // corner radius of the dialog and its buttons (Task 20)
+export const WEB_TO_PAGE_TIME_WINDOW_MS = 2000;                // span over which toPageTime looks for the smallest delay (Task 20)
 export const WEB_STORAGE_KEY_DEFAULT = 'tokk:sounds';
 export const WEB_STORAGE_VERSION = 1;                          // version of the stored entry, no unit
 

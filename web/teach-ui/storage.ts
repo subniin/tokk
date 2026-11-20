@@ -4,6 +4,8 @@
 // personal model. Every access to localStorage is inside try/catch: it can throw (blocked storage, private mode,
 // a sandboxed frame, a full store).
 
+import { emptyModel } from '../../core/classify/knn';
+import { SAMPLE_RATE_MIN_HZ } from '../../core/constants';
 import type { SoundModel } from '../../core/types';
 import { WEB_STORAGE_VERSION } from '../constants';
 import { checkModel } from '../model';
@@ -96,4 +98,10 @@ export function saveStoredModel(key: string, base: string, model: SoundModel, st
     console.warn(`tokk: could not save the model under "${key}": ${reason}`);
     return { ok: false, reason };
   }
+}
+
+// The base of the stored entry when listen() is called without `sounds` (Task 20): the fingerprint of the empty model at
+// SAMPLE_RATE_MIN_HZ. It is one fixed value, because the input rate is not known when the stored model is read.
+export function firstRunBase(): string {
+  return fingerprint(emptyModel(SAMPLE_RATE_MIN_HZ));
 }

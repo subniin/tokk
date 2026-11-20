@@ -1,15 +1,15 @@
 // Pure text of the teach dialog. English only. No function here returns NaN, undefined or Infinity as text.
 
-import { NOISE_FLOOR_WARMUP_MS } from '../../core/constants';
 import type { TeachReport } from '../../core/teach';
 import type { SoundModel } from '../../core/types';
 import { WEB_TEACH_MAX_RECORDING_MS, WEB_TEACH_TIME_DECIMALS } from '../constants';
 import type { TeachExample, TeachState } from './state';
 import { keptCount } from './state';
+import { fillText, TEACH_TEXT_DEFAULTS } from './text';
+import type { ResolvedTeachText } from './text';
 
 const PERCENT = 100;
 const MS_PER_SECOND = 1000;
-const QUIET_SECONDS = NOISE_FLOOR_WARMUP_MS / MS_PER_SECOND;
 const SECONDS_PER_MINUTE = 60;
 
 function whole(n: number): number {
@@ -26,18 +26,19 @@ export function percentText(rate: number): string {
   return `${p}%`;
 }
 
-// The instruction of the current step.
-export function stepText(s: TeachState): string {
-  if (s.finishing) return 'Training...';
-  if (s.phase === 'quiet') return `Stay quiet for ${QUIET_SECONDS} second`;
-  if (s.kind === 'hum') return 'Hum one steady note, then press Done.';
-  if (s.kind === 'background') return 'Let the room make its usual noise, then press Done.';
+// The instruction of the current step. `texts` are the resolved TeachOptions.text (Task 20).
+export function stepText(s: TeachState, texts: ResolvedTeachText = TEACH_TEXT_DEFAULTS): string {
+  if (s.finishing) return texts.training;
+  if (s.phase === 'quiet') return texts.quiet;
+  if (s.kind === 'hum') return texts.recordHum;
+  if (s.kind === 'background') return texts.recordBackground;
   const n = whole(s.target);
-  return `Make the sound ${n} ${n === 1 ? 'time' : 'times'}`;
+  if (texts.record === TEACH_TEXT_DEFAULTS.record) return `Make the sound ${n} ${n === 1 ? 'time' : 'times'}`;
+  return fillText(texts.record, { count: n });
 }
 
-export function countLine(s: TeachState): string {
-  return `${s.examples.length} of ${whole(s.target)} heard, ${keptCount(s)} kept`;
+export function countLine(s: TeachState, texts: ResolvedTeachText = TEACH_TEXT_DEFAULTS): string {
+  return fillText(texts.count, { heard: s.examples.length, target: whole(s.target), kept: keptCount(s) });
 }
 
 export function exampleLine(e: TeachExample): string {
@@ -73,8 +74,8 @@ export function reportLines(report: TeachReport, model: SoundModel | null): stri
   return lines;
 }
 
-export function savedLine(stored: boolean | null): string {
-  return stored === false ? 'Saved for this session only. The browser did not allow storing it.' : 'Saved.';
+export function savedLine(stored: boolean | null, texts: ResolvedTeachText = TEACH_TEXT_DEFAULTS): string {
+  return stored === false ? texts.savedSessionOnly : texts.saved;
 }
 
 // Shown on the saved screen while an asynchronous save is pending (Task 17).

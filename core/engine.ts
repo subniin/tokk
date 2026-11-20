@@ -1,5 +1,7 @@
 // Engine: Segmenter -> classifier -> SoundEvent -> Matcher (design 4.1).
 // Pure TypeScript: no I/O, DOM, Web Audio, clock or randomness.
+// A model without examples is allowed (Task 20): it recognises no sound. Its segments are not classified, so there is no
+// onSegment call and no unknown event for them. The pitch tracker runs as with any model.
 
 import { BACKGROUND, ENGINE_ADVANCE_MARGIN_MS, SAMPLE_RATE_MAX_HZ, SAMPLE_RATE_MIN_HZ } from './constants';
 import { knnClassifier } from './classify/knn';
@@ -108,8 +110,11 @@ export function createEngine(o: EngineOptions): Engine {
     return matcher.push(e);
   };
 
+  const hasExamples = o.sounds.examples.length > 0;   // the model is fixed for the life of the engine
+
   const classify = (segments: Segment[]): MatchEvent[] => {
     const out: MatchEvent[] = [];
+    if (!hasExamples) return out;
     const ranges = tracker.voicedRanges();
     for (const seg of segments) {
       if (overlaps(seg, ranges, now())) continue;

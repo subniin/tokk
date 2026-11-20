@@ -5,7 +5,8 @@ import {
   SYNTH_FIXTURE_LEAD_NOISE_DBFS, SYNTH_FIXTURE_TAIL_MS,
 } from '../core/constants';
 import { Segmenter } from '../core/segment';
-import { rng, synthNoise } from '../core/synth';
+import { emptyModel } from '../core/classify/knn';
+import { place, rng, synthNoise, synthTone } from '../core/synth';
 import { retrainLabel } from '../core/teach';
 import type { SoundModel } from '../core/types';
 import { WEB_TEACH_FILE_NAME, WEB_TEACH_HUM_RECORD_MS, WEB_TEACH_MAX_RECORDING_MS, WEB_TEACH_THUMBNAIL_BINS } from '../web/constants';
@@ -247,4 +248,72 @@ describe('recorder ids and times', () => {
       expect(fin.samples.length).toBe(samples.length);
     }));
   }, Math.max(PBT_TIMEOUT_FLOOR_MS, PBT_RUNS * PBT_MS_PER_CASE));
+});
+
+// Task 20, U8: the Worker with a model that has no examples.
+describe('Worker with an empty model (Task 20)', () => {
+  const HUM_GLIDE_TO_HZ = 300;
+  const HUM_GLIDE_MS = 2000;
+  const HUM_GLIDE_GAIN_DB = -12;
+  const HUM_GLIDE_TAIL_MS = 1000;
+  const RECOGNITION_SEED = 6060;
+  const sineHum = () => Float32Array.from({ length: msToSamples(HUM_LENGTH_MS, RATE_HZ) }, (_, i) => HUM_AMPLITUDE * Math.sin((2 * Math.PI * HUM_HZ * i) / RATE_HZ));
+  const risingHum = () => place(
+    [{ atMs: LEAD_MS, samples: synthTone({ f0Hz: HUM_HZ, durationMs: HUM_GLIDE_MS, gainDb: HUM_GLIDE_GAIN_DB, glideToHz: HUM_GLIDE_TO_HZ }, RATE_HZ) }],
+    LEAD_MS + HUM_GLIDE_MS + HUM_GLIDE_TAIL_MS, RATE_HZ,
+  );
+
+  it('init works and a sound gives no segment, no sound or unknown event and no match', () => {
+    const state = init(emptyModel(RATE_HZ), ['tap', 'high']);
+    const out = feed(state, impacts('high', IMPACTS));
+    expect(out.length).toBeGreaterThan(0);
+    for (const m of out) expect(['event', 'envelope']).toContain(m.type);
+    for (const m of only(out, 'event')) expect(m.e.kind).toBe('continuous');
+  });
+
+  it('teaches a first label through record-start, record-stop and record-trained, and record-end makes it match', () => {
+    const state = init(emptyModel(RATE_HZ), ['tap']);
+    expect(handleWorkerMessage(state, { type: 'record-start', label: 'tap', kind: 'sound' })).toEqual([]);
+    feed(state, impacts('high', IMPACTS));
+    const trained = only(handleWorkerMessage(state, { type: 'record-stop', deleted: [] }), 'record-trained');
+    expect(trained).toHaveLength(1);
+    const model = trained[0].model;
+    expect(new Set(model.examples.map((e) => e.label))).toEqual(new Set(['tap']));
+    expect(model.sampleRate).toBe(RATE_HZ);
+    expect(trained[0].report.labels.map((l) => l.label)).toEqual(['tap']);
+    expect(handleWorkerMessage(state, { type: 'record-end', sounds: model })).toEqual([]);
+    const out = feed(state, impacts('high', IMPACTS, LEAD_MS, RECOGNITION_SEED));
+    expect(out.filter((m) => m.type === 'error')).toEqual([]);
+    expect(only(out, 'match').map((m) => m.pattern)).toEqual(Array.from({ length: IMPACTS }, () => 'tap'));
+  });
+
+  it('teaches hum first: a pitch, no examples, and hum.rise fires after record-end', () => {
+    const state = init(emptyModel(RATE_HZ), ['hum.rise', 'tap']);
+    const before = feed(state, risingHum());
+    expect(before.filter((m) => m.type === 'error' || m.type === 'match')).toEqual([]);
+    expect(only(before, 'event').length).toBeGreaterThan(0);
+    handleWorkerMessage(state, { type: 'record-start', label: HUM_LABEL, kind: 'hum' });
+    feed(state, sineHum());
+    const trained = only(handleWorkerMessage(state, { type: 'record-stop', deleted: [] }), 'record-trained');
+    expect(trained).toHaveLength(1);
+    const model = trained[0].model;
+    expect(model.examples).toEqual([]);
+    expect(Math.abs((model.pitch?.baselineHz ?? 0) - HUM_HZ)).toBeLessThan(HUM_HZ * HUM_PITCH_TOLERANCE);
+    expect(trained[0].report.labels).toEqual([]);
+    handleWorkerMessage(state, { type: 'record-end', sounds: model });
+    const after = feed(state, risingHum());
+    const matches = only(after, 'match');
+    expect(matches.length).toBeGreaterThan(0);
+    expect(matches.every((m) => m.pattern === 'hum.rise')).toBe(true);
+  });
+
+  it('teaches background first', () => {
+    const state = init(emptyModel(RATE_HZ), ['tap']);
+    handleWorkerMessage(state, { type: 'record-start', label: BACKGROUND, kind: 'background' });
+    feed(state, synthNoise('white', BACKGROUND_LENGTH_MS, BACKGROUND_NOISE_DBFS, RATE_HZ, rng(SEED)));
+    const trained = only(handleWorkerMessage(state, { type: 'record-stop', deleted: [] }), 'record-trained');
+    expect(trained).toHaveLength(1);
+    expect(trained[0].model.examples.every((e) => e.label === BACKGROUND)).toBe(true);
+    expect(trained[0].model.examples.length).toBeGreaterThanOrEqual(MIN_EXAMPLES_PER_LABEL);
+  });
 });

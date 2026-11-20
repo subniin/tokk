@@ -303,6 +303,15 @@ export function retrainLabel(
     if (Object.values(counts).some((n) => n < MIN_EXAMPLES_PER_LABEL)) throw new TooFewExamplesError(counts);
   }
 
+  // A hum taught into a model without examples (Task 20): there is nothing to train, so only the pitch changes.
+  if (isHum && all.length === 0) {
+    const next: SoundModel = { version: model.version, k: model.k, sampleRate: model.sampleRate, mean: [], std: [], examples: [], thresholds: {} };
+    if (model.pitch !== undefined) next.pitch = { ...model.pitch };
+    if (pitches.length > 0) next.pitch = { baselineHz: median(pitches) };
+    sortWarnings(warnings);
+    return { model: next, report: { labels: [], confusedPairs: [], warnings } };
+  }
+
   const next = trainVectors(all, model.sampleRate);
   if (model.pitch !== undefined) next.pitch = { ...model.pitch };
   if (isHum && pitches.length > 0) next.pitch = { baselineHz: median(pitches) };

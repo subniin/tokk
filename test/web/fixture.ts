@@ -5,15 +5,18 @@
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
+  KNN_K,
+  MODEL_VERSION,
   NOISE_FLOOR_WARMUP_MS,
   SYNTH_FIXTURE_LEAD_MARGIN_MS,
   SYNTH_FIXTURE_LEAD_NOISE_DBFS,
   SYNTH_FIXTURE_SOUNDS_SPACING_MS,
   SYNTH_FIXTURE_TAIL_MS,
 } from '../../core/constants';
+import { medianPitchHz } from '../../core/continuous/pitch';
 import { runSamples } from '../../core/engine';
 import { Segmenter } from '../../core/segment';
-import { SYNTH_CLASSES } from '../../core/synth';
+import { place, SYNTH_CLASSES, synthTone } from '../../core/synth';
 import { teachFromRecordings } from '../../core/teach';
 import type { Recording } from '../../core/teach';
 import type { SoundModel } from '../../core/types';
@@ -21,6 +24,7 @@ import { readWavFile, writeWavFile } from '../../node/files';
 import { LEAD_MS, TRAIN_GAIN_DB, TRAIN_PER_CLASS, TRAIN_SPACING_MS, TRAIL_MS, makeSignal } from '../helpers/engine-fixture';
 import type { ImpactName } from '../helpers/engine-fixture';
 import {
+  FIXTURE_HUM_MIC_WAV_PATH, FIXTURE_HUM_STEADY_WAV_PATH, FIXTURE_PITCH_ONLY_MODEL_PATH, FIXTURE_TWO_HUM_WAV_PATH,
   FIXTURE_LABELS_PATH, FIXTURE_MISMATCH_MODEL_PATH, FIXTURE_MODEL_PATH, FIXTURE_PHASE_WAV_PATH, FIXTURE_TAP_WAV_PATH, FIXTURE_TEACH_BASE_MODEL_PATH,
   FIXTURE_TEACH_FEW_WAV_PATH, FIXTURE_TEACH_INFO_PATH, FIXTURE_TEACH_PITCH_MODEL_PATH, FIXTURE_TEACH_WAV_PATH, FIXTURE_WAV_PATH, GENERATED_DIR,
   TEACH_PAGE_SEED_DIR,
@@ -181,4 +185,100 @@ export async function generateTeachPageSeed(): Promise<string[]> {
     written.push(path);
   }
   return written;
+}
+
+// Task 20: hum files and a model with a pitch and no examples, at the rate of the other fixtures.
+export const WEB_TEST_HUM_BASELINE_HZ = WEB_TEST_PITCH_BASELINE_HZ;
+export const WEB_TEST_HUM_RISE_HZ = 300;              // a rising hum glides from the baseline to this pitch
+export const WEB_TEST_HUM_STEADY_MS = 4000;           // a steady hum, longer than WEB_TEACH_HUM_RECORD_MS
+export const WEB_TEST_HUM_RISE_MS = 2000;
+export const WEB_TEST_HUM_GAIN_DB = -12;
+// Quiet between the two rising hums of the WAV: the import happens in it and the new engine calibrates
+// (NOISE_FLOOR_WARMUP_MS), with a margin for the page.
+export const WEB_TEST_HUM_GAP_MS = NOISE_FLOOR_WARMUP_MS + 4000;
+// Quiet between the steady hum and the rising hum of the microphone file: Done, training and Save happen in it.
+export const WEB_TEST_HUM_MIC_GAP_MS = 7000;
+export const WEB_TEST_HUM_TAIL_MS = 1500;
+export const WEB_TEST_HUM_PITCH_TOLERANCE = 0.05;    // fraction of the baseline
+const HUM_SEED = 55000;
+
+export interface HumTimes { firstStartMs: number; firstEndMs: number; secondStartMs: number; secondEndMs: number; durationMs: number }
+
+// Starts and ends of the two hums of a file: a first hum (steady or rising), a quiet gap, then a rising hum.
+export function humTimes(firstMs: number, gapMs: number): HumTimes {
+  const firstStartMs = WEB_TEST_LEAD_MS;
+  const firstEndMs = firstStartMs + firstMs;
+  const secondStartMs = firstEndMs + gapMs;
+  const secondEndMs = secondStartMs + WEB_TEST_HUM_RISE_MS;
+  return { firstStartMs, firstEndMs, secondStartMs, secondEndMs, durationMs: secondEndMs + WEB_TEST_HUM_TAIL_MS };
+}
+export const TWO_HUM_TIMES = humTimes(WEB_TEST_HUM_RISE_MS, WEB_TEST_HUM_GAP_MS);
+export const HUM_MIC_TIMES = humTimes(WEB_TEST_HUM_STEADY_MS, WEB_TEST_HUM_MIC_GAP_MS);
+export const HUM_STEADY_DURATION_MS = WEB_TEST_LEAD_MS + WEB_TEST_HUM_STEADY_MS + WEB_TEST_HUM_TAIL_MS;
+
+const steadyHum = (): Float32Array => synthTone({ f0Hz: WEB_TEST_HUM_BASELINE_HZ, durationMs: WEB_TEST_HUM_STEADY_MS, gainDb: WEB_TEST_HUM_GAIN_DB }, WEB_TEST_SAMPLE_RATE_HZ);
+const risingHum = (): Float32Array => synthTone(
+  { f0Hz: WEB_TEST_HUM_BASELINE_HZ, durationMs: WEB_TEST_HUM_RISE_MS, gainDb: WEB_TEST_HUM_GAIN_DB, glideToHz: WEB_TEST_HUM_RISE_HZ }, WEB_TEST_SAMPLE_RATE_HZ,
+);
+
+// A noise bed with tones placed on it.
+function withTones(totalMs: number, tones: { atMs: number; samples: Float32Array }[], seed: number): Float32Array {
+  const out = makeSignal({ sampleRate: WEB_TEST_SAMPLE_RATE_HZ, totalMs, hits: [], seed, noiseRmsDb: SYNTH_FIXTURE_LEAD_NOISE_DBFS });
+  const tone = place(tones, totalMs, WEB_TEST_SAMPLE_RATE_HZ);
+  for (let i = 0; i < out.length; i++) out[i] += tone[i];
+  return out;
+}
+
+const sliceMs = (x: Float32Array, fromMs: number, toMs: number): Float32Array => x.slice(
+  Math.round((fromMs * WEB_TEST_SAMPLE_RATE_HZ) / MS_PER_SECOND_FIXTURE), Math.round((toMs * WEB_TEST_SAMPLE_RATE_HZ) / MS_PER_SECOND_FIXTURE),
+);
+const MS_PER_SECOND_FIXTURE = 1000;
+
+function checkPitch(name: string, samples: Float32Array): void {
+  const hz = medianPitchHz(samples, WEB_TEST_SAMPLE_RATE_HZ);
+  if (hz === null || Math.abs(hz - WEB_TEST_HUM_BASELINE_HZ) > WEB_TEST_HUM_BASELINE_HZ * WEB_TEST_HUM_PITCH_TOLERANCE) {
+    throw new Error(`The ${name} gives the pitch ${String(hz)} Hz in Node, expected ${WEB_TEST_HUM_BASELINE_HZ} Hz.`);
+  }
+}
+
+// The Node engine must hear two hums and no sound, and fire hum.rise on the last (rising) hum. It uses a trained model, so the
+// check does not depend on the features of Task 20 that the browser tests test.
+function checkHums(name: string, samples: Float32Array, times: HumTimes, trained: SoundModel): void {
+  const plain = runSamples(samples, WEB_TEST_SAMPLE_RATE_HZ, trained, []);
+  const starts = plain.events.filter((e) => e.kind === 'continuous' && e.phase === 'start').length;
+  const sounds = plain.events.filter((e) => e.kind === 'sound').length;
+  const withPitch = runSamples(samples, WEB_TEST_SAMPLE_RATE_HZ, { ...trained, pitch: { baselineHz: WEB_TEST_HUM_BASELINE_HZ } }, ['hum.rise']);
+  const inSecond = withPitch.matches.filter((m) => m.t * MS_PER_SECOND_FIXTURE >= times.secondStartMs && m.t * MS_PER_SECOND_FIXTURE <= times.secondEndMs + WEB_TEST_HUM_TAIL_MS);
+  if (starts !== 2 || sounds !== 0 || plain.unknowns.length !== 0 || inSecond.length === 0) {
+    throw new Error(
+      `The ${name} is not heard as expected in Node: ${starts} hums (expected 2), ${sounds} sounds and ${plain.unknowns.length} unknowns (expected 0), `
+      + `${inSecond.length} hum.rise matches in the last hum with a baseline (expected some).`,
+    );
+  }
+}
+
+export async function generateHumFixtures(): Promise<void> {
+  // The same fields as emptyModel(rate) plus a pitch, written out so that this setup does not depend on emptyModel.
+  const pitchModel: SoundModel = {
+    version: MODEL_VERSION, k: KNN_K, sampleRate: WEB_TEST_SAMPLE_RATE_HZ, mean: [], std: [], examples: [], thresholds: {},
+    pitch: { baselineHz: WEB_TEST_HUM_BASELINE_HZ },
+  };
+  const { model: trained } = teachFromRecordings(teachingSet(WEB_TEST_SAMPLE_RATE_HZ).filter((r) => r.label === 'low' || r.label === 'mid'));
+  const steady = withTones(HUM_STEADY_DURATION_MS, [{ atMs: WEB_TEST_LEAD_MS, samples: steadyHum() }], HUM_SEED);
+  const two = withTones(TWO_HUM_TIMES.durationMs, [
+    { atMs: TWO_HUM_TIMES.firstStartMs, samples: risingHum() }, { atMs: TWO_HUM_TIMES.secondStartMs, samples: risingHum() },
+  ], HUM_SEED + SEED_STEP);
+  const mic = withTones(HUM_MIC_TIMES.durationMs, [
+    { atMs: HUM_MIC_TIMES.firstStartMs, samples: steadyHum() }, { atMs: HUM_MIC_TIMES.secondStartMs, samples: risingHum() },
+  ], HUM_SEED + 2 * SEED_STEP);
+  checkPitch('steady-hum file', steady);
+  checkPitch('steady hum of the microphone file', sliceMs(mic, 0, HUM_MIC_TIMES.firstEndMs + WEB_TEST_HUM_TAIL_MS));
+  checkHums('two-hum file', two, TWO_HUM_TIMES, trained);
+  checkHums('hum microphone file', mic, HUM_MIC_TIMES, trained);
+  const steadyMatches = runSamples(sliceMs(mic, 0, HUM_MIC_TIMES.secondStartMs), WEB_TEST_SAMPLE_RATE_HZ, { ...trained, pitch: pitchModel.pitch }, ['hum.rise', 'hum.fall']).matches;
+  if (steadyMatches.length !== 0) throw new Error(`The steady hum of the microphone file fires ${steadyMatches.length} hum patterns in Node, expected none.`);
+  await writeWavFile(FIXTURE_HUM_STEADY_WAV_PATH, steady, WEB_TEST_SAMPLE_RATE_HZ);
+  await writeWavFile(FIXTURE_TWO_HUM_WAV_PATH, two, WEB_TEST_SAMPLE_RATE_HZ);
+  await writeWavFile(FIXTURE_HUM_MIC_WAV_PATH, mic, WEB_TEST_SAMPLE_RATE_HZ);
+  await writeFile(FIXTURE_PITCH_ONLY_MODEL_PATH, JSON.stringify(pitchModel));
 }

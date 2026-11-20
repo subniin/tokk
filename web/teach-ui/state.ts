@@ -6,6 +6,8 @@ import type { SoundModel } from '../../core/types';
 import { WEB_TEACH_BACKGROUND_RECORD_MS, WEB_TEACH_HUM_RECORD_MS, WEB_TEACH_PROGRESS_REDUCED_MOTION_MS } from '../constants';
 import { kindOfLabel } from '../record-kind';
 import type { RecordKind } from '../record-kind';
+import { fillText, TEACH_TEXT_DEFAULTS } from './text';
+import type { ResolvedTeachText } from './text';
 
 const MS_PER_SECOND = 1000;
 const LABEL_RULE = /^[a-z][a-z0-9-]{0,31}$/;
@@ -79,8 +81,9 @@ function secondsLeftText(leftMs: number): string {
   return `${seconds} more ${seconds === 1 ? 'second' : 'seconds'}`;
 }
 
-// Whether the Done button works, and if not, what to do.
-export function doneState(s: TeachState): Gate {
+// Whether the Done button works, and if not, what to do. `texts` are the resolved TeachOptions.text (Task 20): only
+// the reason for too few examples (needMore) can be replaced.
+export function doneState(s: TeachState, texts: ResolvedTeachText = TEACH_TEXT_DEFAULTS): Gate {
   if (s.phase === 'quiet') return { enabled: false, reason: 'The quiet second is not over yet. Wait until it is done.' };
   if (s.phase !== 'recording') return { enabled: false, reason: '' };
   if (s.finishing) return { enabled: false, reason: 'The model is being trained. Wait a moment.' };
@@ -88,7 +91,7 @@ export function doneState(s: TeachState): Gate {
     const kept = keptCount(s);
     return kept >= MIN_EXAMPLES_PER_LABEL
       ? { enabled: true, reason: '' }
-      : { enabled: false, reason: `Keep at least ${MIN_EXAMPLES_PER_LABEL} examples. You have ${kept}.` };
+      : { enabled: false, reason: fillText(texts.needMore, { min: MIN_EXAMPLES_PER_LABEL, kept }) };
   }
   const need = requiredMs(s.kind);
   if (s.elapsedMs >= need) return { enabled: true, reason: '' };

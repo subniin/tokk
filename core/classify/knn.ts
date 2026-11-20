@@ -154,6 +154,12 @@ export function trainVectors(
   };
 }
 
+// A model that knows no sound (Task 20): a first-run app starts with it and teaches every label. It recognises no
+// sound until a label is taught (the engine does not classify while a model has no examples). A new object per call.
+export function emptyModel(sampleRate: number): SoundModel {
+  return { version: MODEL_VERSION, k: KNN_K, sampleRate, mean: [], std: [], examples: [], thresholds: {} };
+}
+
 function confidenceOf(d: number, threshold: number): number {
   return threshold > 0 ? Math.max(0, 1 - d / threshold) : 1;
 }

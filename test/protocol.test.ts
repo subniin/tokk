@@ -271,7 +271,8 @@ describe('errors', () => {
 });
 
 describe('replaceSounds', () => {
-  it('uses the new model, restarts the engine clock and keeps envelope times continuous', () => {
+  // Changed by Task 20 (requirement 6.4): the envelope times restart together with the engine clock.
+  it('uses the new model, restarts the engine clock and restarts the envelope times with the engine clock', () => {
     const rate = REPLACE_RATE_HZ;
     const first = buildModel(['low', 'mid'], rate);
     const second = buildModel(['low', 'mid'], rate, { low: 'high' });
@@ -295,13 +296,16 @@ describe('replaceSounds', () => {
     expect(m2.map((m) => m.pattern)).toEqual(['high']);
     expect(m2[0].event.t).toBe(m1[0].event.t);
 
-    const env = [...run1, ...run2].filter((m) => m.type === 'envelope') as { t0: number; min: Float32Array }[];
     const binSize = msToSamples(WEB_ENVELOPE_RESOLUTION_MS, rate);
-    let bins = 0;
-    for (const m of env) {
-      expect(m.t0).toBe((bins * binSize) / rate);
-      bins += m.min.length;
+    for (const run of [run1, run2]) {
+      const env = run.filter((m) => m.type === 'envelope') as { t0: number; min: Float32Array }[];
+      expect(env[0].t0).toBe(0);
+      let bins = 0;
+      for (const m of env) {
+        expect(m.t0).toBe((bins * binSize) / rate);
+        bins += m.min.length;
+      }
+      expect(bins).toBe(Math.floor(signal.length / binSize));
     }
-    expect(bins).toBe(Math.floor((2 * signal.length) / binSize));
   });
 });

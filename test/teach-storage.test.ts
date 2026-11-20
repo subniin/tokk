@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { MODEL_VERSION } from '../core/constants';
+import { emptyModel } from '../core/classify/knn';
+import { MODEL_VERSION, SAMPLE_RATE_MIN_HZ } from '../core/constants';
 import type { SoundModel } from '../core/types';
 import { WEB_STORAGE_KEY_DEFAULT, WEB_STORAGE_VERSION } from '../web/constants';
 import { loadSounds } from '../web/load-sounds';
-import { canonicalJson, fingerprint, loadStoredModel, saveStoredModel } from '../web/teach-ui/storage';
+import { canonicalJson, fingerprint, firstRunBase, loadStoredModel, saveStoredModel } from '../web/teach-ui/storage';
 import type { StorageLike } from '../web/teach-ui/storage';
 
 // Test-only values.
@@ -131,5 +132,17 @@ describe('one validation for loadSounds and storage', () => {
     const s = stub();
     saveStoredModel(KEY, BASE, loaded, s);
     expect(loadStoredModel(KEY, BASE, s)).toEqual(loaded);
+  });
+});
+
+// Task 20, U15: the base of a storage entry when listen() is called without `sounds`.
+describe('base of an omitted sounds (Task 20)', () => {
+  const FIRST_RUN_BASE = '7bef2aa0';   // fingerprint(emptyModel(SAMPLE_RATE_MIN_HZ)), recorded in design.md "Measured values"
+
+  it('is the pinned fingerprint of the empty model at SAMPLE_RATE_MIN_HZ and takes no rate', () => {
+    expect(firstRunBase.length).toBe(0);
+    expect(firstRunBase()).toBe(FIRST_RUN_BASE);
+    expect(fingerprint(emptyModel(SAMPLE_RATE_MIN_HZ))).toBe(FIRST_RUN_BASE);
+    expect(fingerprint(emptyModel(SAMPLE_RATE_HZ))).not.toBe(FIRST_RUN_BASE);
   });
 });

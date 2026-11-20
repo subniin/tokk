@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>tokk first-run test page</title>
+  <style>
+    /* Page rules for the style-isolation part of test/web/first-run.spec.ts. */
+    body { font-size: 27px; color: rgb(255, 0, 0); }
+    h1 { font-size: 41px; font-weight: 300; }
+    button { background: rgb(0, 255, 0); font-family: monospace; border-radius: 17px; }
+  </style>
+</head>
+<body>
+  <!-- Test page for test/web/first-run.spec.ts (Task 20). It uses only the built bundle /dist/tokk.js. -->
+  <h1 id="page-title">First-run test page</h1>
+  <button id="teach" type="button">Teach a sound</button>
+  <script type="module">
+    import { listen, loadSounds } from '/dist/tokk.js';
+
+    const MS_PER_SECOND = 1000;
+    const OUTPUT_TIMESTAMP_POLL_MS = 20;
+    const OUTPUT_TIMESTAMP_TRIES = 100;
+
+    // The spec reads this object. It holds handler calls, onEvent and onEnvelope calls, warnings and outcomes.
+    const state = {
+      calls: [], events: [], envelopes: [], warnings: [], ready: false, rejection: null, ears: null, teach: null,
+      stream: null, pauses: [],
+    };
+    window.tokkTest = state;
+    window.tt = () => state;   // a short name for the spec's page.evaluate callbacks
+    const originalWarn = console.warn.bind(console);
+    console.warn = (...args) => { state.warnings.push(args.map(String).join(' ')); originalWarn(...args); };
+
+    const toPage = (t) => {
+      try { return state.ears === null ? null : state.ears.toPageTime(t); } catch { return null; }
+    };
+
+    // A MediaStream that plays a WAV from a known context time. The true page time of its start comes from
+    // getOutputTimestamp(): the page time at which a given context time is output.
+    async function makeStream(url, leadMs) {
+      const context = new AudioContext();
+      const data = await (await fetch(url)).arrayBuffer();
+      const buffer = await context.decodeAudioData(data);
+      const destination = context.createMediaStreamDestination();
+      const node = context.createBufferSource();
+      node.buffer = buffer;
+      node.connect(destination);
+      await context.resume();
+      const startContextS = context.currentTime + leadMs / MS_PER_SECOND;
+      node.start(startContextS);
+      let ts = context.getOutputTimestamp();
+      for (let i = 0; i < OUTPUT_TIMESTAMP_TRIES && !(ts.performanceTime > 0 && ts.contextTime > 0); i++) {
+        await new Promise((r) => setTimeout(r, OUTPUT_TIMESTAMP_POLL_MS));
+        ts = context.getOutputTimestamp();
+      }
+      const startPageMs = ts.performanceTime + (startContextS - ts.contextTime) * MS_PER_SECOND;
+      state.stream = {
+        startPageMs, rateHz: context.sampleRate, baseLatencyS: context.baseLatency, outputLatencyS: context.outputLatency,
+        contextTimeS: ts.contextTime, performanceTimeMs: ts.performanceTime,
+      };
+      state.streamContext = context;
+      return destination.stream;
+    }
+
+    // Starts listen(). o: { model, source, streamWav, streamLeadMs, storageKey, patterns, debug, pauseAfter, pauseMs }.
+    // Without `model` the `sounds` option is left out.
+    async function start(o = {}) {
+      try {
+        const patterns = o.patterns ?? [];
+        const pauseAfter = o.pauseAfter ?? [];
+        const on = Object.fromEntries(patterns.map((name) => [name, (m) => {
+          const nowMs = performance.now();
+          state.calls.push({ pattern: name, t: m.t, pageMs: toPage(m.t), nowMs });
+          if (pauseAfter.includes(state.calls.length)) {
+            state.ears.pause();
+            state.pauses.push({ atMs: performance.now() });
+            setTimeout(() => { state.ears.resume(); state.pauses[state.pauses.length - 1].resumedMs = performance.now(); }, o.pauseMs);
+          }
+        }]));
+        const options = {
+          on,
+          onEvent: (e) => { state.events.push(e); },
+          onEnvelope: (env) => {
+            state.envelopes.push({ t0: env.t0, binMs: env.binMs, bins: env.min.length, maxBins: env.max.length, typed: env.min instanceof Float32Array, arrivalMs: performance.now() });
+          },
+        };
+        if (o.model) options.sounds = typeof o.model === 'string' ? await loadSounds(o.model) : o.model;
+        if (o.source === 'stream') options.source = await makeStream(o.streamWav, o.streamLeadMs);
+        else if (o.source) options.source = o.source;
+        if (o.storageKey) options.storageKey = o.storageKey;
+        if (o.debug) options.debug = true;
+        state.ears = await listen(options);
+        state.readyMs = performance.now();
+        state.ready = true;
+        return { ok: true };
+      } catch (e) {
+        state.rejection = e instanceof Error ? e.message : String(e);
+        return { ok: false, message: state.rejection };
+      }
+    }
+    state.start = start;
+
+    // Calls ears.teach and records how the promise ends. It does not wait for the dialog.
+    state.teachStart = (label, options = { ui: true }) => {
+      const outcome = { settled: false, ok: null, name: null, message: null, report: null };
+      state.teach = outcome;
+      state.ears.teach(label, options).then(
+        (report) => { Object.assign(outcome, { settled: true, ok: true, report }); },
+        (e) => { Object.assign(outcome, { settled: true, ok: false, name: e.name, message: e.message }); },
+      );
+    };
+
+    // Calls ears.teach and returns how the promise ended (for argument errors, which end at once).
+    state.teachOutcome = async (label, options) => {
+      try {
+        return { ok: true, report: await state.ears.teach(label, options) };
+      } catch (e) {
+        return { ok: false, name: e.name, message: e.message };
+      }
+    };
+
+    // Sets or removes --tokk-* custom properties on the root element.
+    state.setTheme = (props) => {
+      for (const [name, value] of Object.entries(props)) {
+        if (value === null) document.documentElement.style.removeProperty(name);
+        else document.documentElement.style.setProperty(name, value);
+      }
+    };
+
+    document.getElementById('teach').addEventListener('click', () => { state.teachStart('tap', { ui: true }); });
+  </script>
+</body>
+</html>

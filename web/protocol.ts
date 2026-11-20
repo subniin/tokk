@@ -231,8 +231,10 @@ function handle(state: WorkerState, msg: unknown): void {
     case 'replaceSounds': {
       if (state.recordOnly) throw new Error('replaceSounds is not available in a record-only Worker.');
       if (state.engine === null) throw new Error('Send init before replaceSounds.');
-      // The core engine takes its model once, so a new engine is built. Its clock and its calibration restart.
+      // The core engine takes its model once, so a new engine is built. Its clock and its calibration restart, and the
+      // envelope restarts with it (Task 20), so the envelope times and the engine times stay on one axis.
       state.sounds = m.sounds as SoundModel;
+      resetEnvelope(state);
       state.engine = buildEngine(state, state.sounds);
       return;
     }

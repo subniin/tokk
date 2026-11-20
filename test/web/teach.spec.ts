@@ -297,7 +297,7 @@ test.describe('with a WAV file as the source', () => {
 
   test('importSounds of invalid text throws and changes nothing; a valid text replaces, stores and survives a reload', async ({ page }) => {
     const key = uniqueKey();
-    // The engine rejects a hum pattern when the model has no pitch baseline, so a hum pattern shows the handler check.
+    // Changed by Task 20 (requirement 4.6): a hum pattern without a baseline is inert, so a model without a pitch is imported.
     const options = { model: FIXTURE_TEACH_PITCH_MODEL_URL, storageKey: key, source: FIXTURE_TAP_WAV_URL, patterns: 'hum.rise' };
     await open(page, options);
     const before = await exported(page);
@@ -306,13 +306,17 @@ test.describe('with a WAV file as the source', () => {
     const tryImport = (text: string): Promise<string> => page.evaluate((t) => {
       try { (window as unknown as TestWindow).tokkTest.ears.importSounds(t); return 'ok'; } catch (e) { return (e as Error).message; }
     }, text);
-    for (const bad of ['not json', '{}', JSON.stringify({ ...full, version: 99 }), JSON.stringify(full)]) {
+    for (const bad of ['not json', '{}', JSON.stringify({ ...full, version: 99 })]) {
       const message = await tryImport(bad);
       expect(message, bad.slice(0, 20)).not.toBe('ok');
       expect(message.length).toBeGreaterThan(0);
       expect(await exported(page)).toBe(before);
       expect(await storedItem(page, key)).toBeNull();
     }
+    expect(await tryImport(JSON.stringify(full))).toBe('ok');   // no baseline: imported, stored, and hum.rise stays inert
+    expect(JSON.parse(await exported(page))).toEqual(full);
+    expect(await storedItem(page, key)).not.toBeNull();
+    expect(await callCount(page)).toBe(0);
     expect(await tryImport(fullWithPitch)).toBe('ok');
     expect(await labelsOf(page)).toEqual(WEB_TEST_FULL_LABELS);
     expect(JSON.parse(await exported(page))).toEqual(JSON.parse(fullWithPitch));

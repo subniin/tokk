@@ -1,42 +1,69 @@
 // listen(): microphone or WAV file -> Worker (engine) -> handlers on the main thread.
 // Nothing is sent over the network except the GET of a WAV URL given as `source`. No sample is stored.
 
+import { emptyModel } from '../core/classify/knn';
 import { createEngine } from '../core/engine';
-import type { Handlers } from '../core/engine';
+import type { EngineEvent, Handlers } from '../core/engine';
 import { MIN_EXAMPLES_PER_LABEL, RECOMMENDED_EXAMPLES_PER_LABEL, SAMPLE_RATE_MIN_HZ } from '../core/constants';
 import type { TeachReport } from '../core/teach';
 import type { SoundModel } from '../core/types';
 import { readWav } from '../core/wav';
-import { WEB_CHUNK_MS, WEB_STORAGE_KEY_DEFAULT } from './constants';
+import { WEB_CHUNK_MS, WEB_ENVELOPE_RESOLUTION_MS, WEB_STORAGE_KEY_DEFAULT } from './constants';
 import { openMic } from './mic';
 import type { MicHandle } from './mic';
-import { checkModel } from './model';
+import { checkModel, labelsOf } from './model';
 import { msToSamples } from './protocol';
 import type { MainToWorker, MessagePortLike, WorkerToMain } from './protocol';
 import { mountOverlay } from './overlay/overlay';
 import type { OverlayHandle } from './overlay/overlay';
-import { fingerprint, loadStoredModel, saveStoredModel } from './teach-ui/storage';
+import { createPageTime } from './page-time';
+import { fingerprint, firstRunBase, loadStoredModel, saveStoredModel } from './teach-ui/storage';
 import { validateLabel } from './teach-ui/state';
 import { mountTeachDialog } from './teach-ui/teach-dialog';
 import type { RecordMessage, TeachController, TeachDialogHandle } from './teach-ui/teach-dialog';
+import { resolveTeachText } from './teach-ui/text';
+import type { ResolvedTeachText, TeachText } from './teach-ui/text';
 import { createTokkWorker } from './worker-factory';
 import type { WorkerHandle } from './worker-factory';
 
 const MS_PER_SECOND = 1000;
 
+// A summary of the waveform: the smallest and the largest sample of each bin of binMs (10 ms), two numbers per bin.
+// t0 is the sound time in s of the first bin (a cumulative sample count divided by the sample rate). The arrays are the
+// ones the debug overlay reads too: do not modify them.
+export interface Envelope {
+  t0: number;
+  binMs: number;
+  min: Float32Array;
+  max: Float32Array;
+}
+
 export interface ListenOptions {
-  sounds: SoundModel;
+  // The sound model (sounds.json). Leave it out for a first run: listening starts with an empty model at the rate of the
+  // input, and no sound pattern matches until a label is taught with ears.teach().
+  sounds?: SoundModel;
   on?: Handlers;
   modes?: Record<string, Handlers>;
   mode?: string;
   debug?: boolean;                      // true mounts the debug overlay (a panel with the waveform and the last results)
   source?: string | MediaStream;        // a WAV URL, a MediaStream, or none for the microphone
   storageKey?: string;                  // localStorage key of the taught model, default 'tokk:sounds'
+  // Every event the engine makes: each sound, each continuous pitch event of a hum, and each unknown sound with its
+  // nearest example (nearest is on unknown events only). A segment classified as background makes no event.
+  onEvent?: (e: EngineEvent) => void;
+  // The envelope of the input, about every 20 ms. It is a summary (two numbers per 10 ms), Tokk sends it nowhere, and
+  // the app's own code must not send it or store it either (privacy rule). An error in this callback is logged.
+  onEnvelope?: (env: Envelope) => void;
 }
 
 export interface TeachOptions {
   ui?: true;                            // this version teaches through the dialog only
   examples?: number;                    // how many sounds the dialog asks for, default 10, at least 5
+  // Texts of the dialog in the app's voice, for this dialog only. Keys: title {label}, quiet, record {count}, recordHum,
+  // recordBackground, training, count {heard} {target} {kept}, needMore {min} {kept}, review, failed, done, save,
+  // again, cancel, close, saved, savedSessionOnly. A {name} is replaced by its value; the text is shown as plain text.
+  // The Delete buttons, the accessible names, the example lines, the report and the other reasons keep their texts.
+  text?: TeachText;
 }
 
 export interface Ears {
@@ -45,16 +72,29 @@ export interface Ears {
   resume(): void;
   stop(): Promise<void>;
   readonly sounds: SoundModel;          // the current model: it changes after a Save in the teach dialog or an import
+  // The taught labels of the current model, sorted, without background (read ears.sounds.examples for that), plus
+  // hum when a hum pitch was taught. An empty array on a first run. A new array on every read.
+  readonly labels: string[];
+  // Maps a sound time t in s (MatchEvent.t) of the current engine to a page time in ms on the clock of performance.now().
+  // The page time is when the sound reached the page, not when it was made: it is later by the delay of the input device
+  // and the audio graph (unknown to the page), by up to one envelope bin (10 ms), and by the part of the message jitter
+  // that the smallest-delay rule does not remove. It works across pause() and resume(). A rebuild of the engine (Save or
+  // Cancel of a teach dialog, importSounds) restarts the sound clock, so a time from before it cannot be mapped: call
+  // toPageTime inside the handler or soon after it. Throws an Error before any audio has arrived, a RangeError for a t
+  // that is not finite. After stop() it keeps the last mapping.
+  toPageTime(t: number): number;
   teach(label: string, options?: TeachOptions): Promise<TeachReport>;
   exportSounds(): string;               // the current model as JSON text (feature vectors only)
   importSounds(json: string): void;
 }
 
-type EngineOptionsLike = Pick<ListenOptions, 'sounds' | 'on' | 'modes' | 'mode'>;
+type HandlerOptions = Pick<ListenOptions, 'on' | 'modes' | 'mode'>;
 
-// Builds an engine and drops it, to get the error that createEngine gives for these options.
-function throwawayEngine(o: EngineOptionsLike, sampleRate: number) {
-  return createEngine({ sounds: o.sounds, sampleRate, on: o.on, modes: o.modes, mode: o.mode });
+// Builds an engine and drops it, to get the error that createEngine gives for these handlers. A model can no longer make
+// it fail (a hum pattern without a baseline is inert since Task 20), so it rejects a bad mode or pattern before a
+// microphone, a WAV download or a Worker is used.
+function throwawayEngine(o: HandlerOptions, sounds: SoundModel, sampleRate: number) {
+  return createEngine({ sounds, sampleRate, on: o.on, modes: o.modes, mode: o.mode });
 }
 
 function failure(url: string, problem: string, cause?: unknown): Error {
@@ -129,6 +169,12 @@ function rethrowLater(e: unknown): void {
 
 // Starts listening and calls the handlers.
 //
+// First run: leave out `sounds` and listening starts with an empty model. No sound pattern matches until a label is
+// taught with ears.teach(label, { ui: true }); ears.labels is [] until then. The empty model takes the sample rate of
+// the input (microphone or WAV), so the first teach decides nothing about the rate. A hum.rise or hum.fall pattern is
+// inert until a hum is taught. The taught model is stored as below, with a fixed base for a first run; a stored first-run
+// model whose rate differs from the input's (another device) is ignored with a console warning and kept.
+//
 // Teaching: `ears.teach(label, { ui: true })` opens a dialog in the page. The new model is stored in localStorage under
 // `storageKey` (default "tokk:sounds") as { version, base, model }: feature vectors only, never a recording. On the next
 // start the stored model replaces `sounds`. `base` is a fingerprint of the `sounds` you pass here: when you ship a new
@@ -138,28 +184,30 @@ function rethrowLater(e: unknown): void {
 export async function listen(options: ListenOptions): Promise<Ears> {
   const opts: ListenOptions = { ...options };
   const storageKey = opts.storageKey ?? WEB_STORAGE_KEY_DEFAULT;
-  const base = fingerprint(opts.sounds);   // the model the developer shipped
-  let sounds = opts.sounds;
+  const given = opts.sounds;   // the model the developer shipped, or undefined for a first run
+  const base = given === undefined ? firstRunBase() : fingerprint(given);
+  let sounds: SoundModel = given ?? emptyModel(SAMPLE_RATE_MIN_HZ);   // replaced once the input rate is known
   const handlerSets: Record<string, Handlers> = opts.modes ?? { default: opts.on ?? {} };
   let currentMode = opts.modes ? (opts.mode as string) : 'default';
   const patterns: Record<string, string[]> = Object.fromEntries(Object.entries(handlerSets).map(([m, h]) => [m, Object.keys(h)]));
 
-  // A stored model (taught earlier on this shipped model) wins when the handlers accept it.
-  const stored = loadStoredModel(storageKey, base);
+  // A stored model (taught earlier on this shipped model, or on a first run) wins when the handlers accept it.
+  let stored = loadStoredModel(storageKey, base);
   if (stored !== null) {
     try {
-      throwawayEngine({ ...opts, sounds: stored }, SAMPLE_RATE_MIN_HZ);
-      sounds = stored;
-      opts.sounds = stored;
+      throwawayEngine(opts, stored, SAMPLE_RATE_MIN_HZ);
+      if (given !== undefined) sounds = stored;
     } catch (e) {
       console.warn(`tokk: ignoring the stored model "${storageKey}": the handlers do not fit it (${e instanceof Error ? e.message : String(e)}).`);
+      stored = null;
     }
   }
+  const checkedModel = (sampleRate: number): SoundModel => stored ?? given ?? emptyModel(sampleRate);
 
-  throwawayEngine(opts, SAMPLE_RATE_MIN_HZ);   // rejects before any microphone, fetch or Worker is used
+  throwawayEngine(opts, checkedModel(SAMPLE_RATE_MIN_HZ), SAMPLE_RATE_MIN_HZ);   // rejects before any microphone, fetch or Worker is used
 
   const wav = typeof opts.source === 'string' ? await fetchWav(opts.source) : null;
-  if (wav) throwawayEngine(opts, wav.sampleRate);
+  if (wav) throwawayEngine(opts, checkedModel(wav.sampleRate), wav.sampleRate);
 
   let closed = false;
   let startupError: string | null = null;
@@ -176,6 +224,7 @@ export async function listen(options: ListenOptions): Promise<Ears> {
   let dialogHandle: TeachDialogHandle | null = null;
   let abortTeach: (() => void) | null = null;
   let recordListener: ((msg: RecordMessage) => void) | null = null;
+  const pageTime = createPageTime();
 
   // A failure inside an overlay call is logged and never stops the handlers.
   const withOverlay = (call: (o: OverlayHandle) => void): void => {
@@ -199,9 +248,23 @@ export async function listen(options: ListenOptions): Promise<Ears> {
       case 'segment':
         withOverlay((o) => o.onEvent({ t: msg.t, durationMs: msg.durationMs, result: msg.result }));
         return;
-      case 'envelope':
-        withOverlay((o) => o.onEnvelope(msg));
+      case 'event':
+        if (teaching || opts.onEvent === undefined) return;   // also a message that was already in flight when the dialog opened
+        try { opts.onEvent(msg.e); } catch (e) { rethrowLater(e); }
         return;
+      case 'envelope': {
+        withOverlay((o) => o.onEnvelope(msg));
+        const binSamples = msToSamples(WEB_ENVELOPE_RESOLUTION_MS, contextRate);
+        const endBins = Math.round((msg.t0 * contextRate) / binSamples) + msg.min.length;
+        pageTime.envelope(performance.now(), msg.t0, (endBins * binSamples) / contextRate);
+        if (teaching || opts.onEnvelope === undefined) return;
+        try {
+          opts.onEnvelope({ t0: msg.t0, binMs: WEB_ENVELOPE_RESOLUTION_MS, min: msg.min, max: msg.max });
+        } catch (e) {
+          console.error('tokk: onEnvelope error:', e);   // it could repeat every 20 ms, so it is logged, not rethrown
+        }
+        return;
+      }
       case 'match': {
         if (teaching) return;   // also a message that was already in flight when the dialog opened
         withOverlay((o) => o.onMatch(msg.pattern, msg.event));
@@ -222,7 +285,7 @@ export async function listen(options: ListenOptions): Promise<Ears> {
         console.error(`tokk: ${msg.message}`);
         return;
       default:
-        return;   // `event` messages are not used here: a `segment` message gives the overlay one row per segment
+        return;
     }
   };
 
@@ -255,6 +318,13 @@ export async function listen(options: ListenOptions): Promise<Ears> {
 
     const sampleRate = wav ? wav.sampleRate : (mic as MicHandle).sampleRate;
     contextRate = sampleRate;
+    if (given === undefined) {
+      // A first run: a stored first-run model is used only when it was taught at this rate.
+      if (stored !== null && stored.sampleRate !== sampleRate) {
+        console.warn(`tokk: ignoring the stored model "${storageKey}": it was taught at ${stored.sampleRate} Hz, but the input runs at ${sampleRate} Hz, so listening starts without sounds. The stored model is kept.`);
+      }
+      sounds = stored !== null && stored.sampleRate === sampleRate ? stored : emptyModel(sampleRate);
+    }
     post({ type: 'init', sounds, sampleRate, patterns, mode: currentMode });
     if (opts.debug === true) overlay = tryMount(sampleRate);
     if (mic) {
@@ -279,8 +349,8 @@ export async function listen(options: ListenOptions): Promise<Ears> {
   const controller: TeachController = {
     start: (label, kind) => post({ type: 'record-start', label, kind }),
     stop: (deleted) => post({ type: 'record-stop', deleted }),
-    end: (model) => post({ type: 'record-end', sounds: model }),
-    cancel: () => post({ type: 'record-cancel' }),
+    end: (model) => { pageTime.rebuild(); post({ type: 'record-end', sounds: model }); },
+    cancel: () => { pageTime.rebuild(); post({ type: 'record-cancel' }); },
     subscribe: (handler) => {
       recordListener = handler;
       return () => { if (recordListener === handler) recordListener = null; };
@@ -308,6 +378,12 @@ export async function listen(options: ListenOptions): Promise<Ears> {
     if (!Number.isInteger(examples) || examples < MIN_EXAMPLES_PER_LABEL) {
       return Promise.reject(new RangeError(`ears.teach(): examples must be a whole number of at least ${MIN_EXAMPLES_PER_LABEL}, got ${String(examples)}.`));
     }
+    let texts: ResolvedTeachText;
+    try {
+      texts = resolveTeachText(topts?.text);
+    } catch (e) {
+      return Promise.reject(new RangeError(`ears.teach(): ${e instanceof Error ? e.message : String(e)}`));
+    }
     if (topts?.ui !== true) {
       return Promise.reject(new Error('ears.teach() needs { ui: true } in this version. Call ears.teach("tap", { ui: true }).'));
     }
@@ -324,6 +400,7 @@ export async function listen(options: ListenOptions): Promise<Ears> {
           label,
           examples,
           model: sounds,
+          text: texts,
           controller,
           onSave: (model, report) => {
             saved = true;
@@ -373,23 +450,27 @@ export async function listen(options: ListenOptions): Promise<Ears> {
         : `ears.importSounds(): the model has version ${checked.version}, but this build supports another version. Teach the sounds again.`);
     }
     const next = checked.model;
-    const handlers: EngineOptionsLike = opts.modes ? { sounds: next, modes: opts.modes, mode: currentMode } : { sounds: next, on: opts.on };
+    const handlers: HandlerOptions = opts.modes ? { modes: opts.modes, mode: currentMode } : { on: opts.on };
     try {
-      throwawayEngine(handlers, SAMPLE_RATE_MIN_HZ);
-      throwawayEngine(handlers, contextRate);
+      throwawayEngine(handlers, next, SAMPLE_RATE_MIN_HZ);
+      throwawayEngine(handlers, next, contextRate);
     } catch (e) {
       throw new Error(`ears.importSounds(): your handlers do not fit this model: ${e instanceof Error ? e.message : String(e)}`, { cause: e });
     }
+    pageTime.rebuild();
     post({ type: 'replaceSounds', sounds: next });
     adopt(next);
   };
 
   return {
     get sounds(): SoundModel { return sounds; },
+    get labels(): string[] { return labelsOf(sounds); },
+    toPageTime: (t: number): number => pageTime.toPageTime(t),
     teach,
     exportSounds: () => JSON.stringify(sounds),
-    importSounds,    setMode(name: string): void {
-      throwawayEngine({ sounds, modes: Object.fromEntries(Object.keys(handlerSets).map((m) => [m, {}])), mode: Object.keys(handlerSets)[0] }, SAMPLE_RATE_MIN_HZ).setMode(name);
+    importSounds,
+    setMode(name: string): void {
+      throwawayEngine({ modes: Object.fromEntries(Object.keys(handlerSets).map((m) => [m, {}])), mode: Object.keys(handlerSets)[0] }, sounds, SAMPLE_RATE_MIN_HZ).setMode(name);
       if (closed) return;
       currentMode = name;
       post({ type: 'setMode', name });
@@ -399,11 +480,13 @@ export async function listen(options: ListenOptions): Promise<Ears> {
       paused = true;
       mic?.pause();
       pacer?.pause();
+      pageTime.pause();
       withOverlay((o) => o.setState('paused'));
     },
     resume(): void {
       if (closed || !paused || teaching) return;
       paused = false;
+      pageTime.resume(performance.now());
       mic?.resume();
       pacer?.start();
       withOverlay((o) => o.setState('listening'));

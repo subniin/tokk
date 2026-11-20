@@ -265,16 +265,39 @@ describe('Matcher construction and setPatterns', () => {
     expect(m.push(sound('knock', 0))).toEqual([{ pattern: 'knock', t: 0 }]);
   });
 
+  // Changed by Task 20 (requirement 4.6): a hum pattern without a baseline is kept and inert instead of throwing.
   it('28 checks baselineHz (Req 3.3, 3.4, 3.7)', () => {
-    expect(() => new Matcher(['hum.rise'])).toThrow(RangeError);
-    expect(() => new Matcher(['hum.rise'])).toThrow(/baselineHz/);
+    expect(() => new Matcher(['hum.rise'])).not.toThrow();
+    expect(new Matcher(['hum.rise']).push(pitch('update', 0, hzAbove(BASELINE_HZ, 12)))).toEqual([]);
     expect(() => new Matcher(['a'])).not.toThrow();
     for (const bad of [0, -5, NaN, Infinity]) {
       expect(() => new Matcher(['a'], bad)).toThrow(RangeError);
     }
     const m = new Matcher(['a']);
-    expect(() => m.setPatterns(['hum.rise'])).toThrow(RangeError);
+    expect(() => m.setPatterns(['hum.rise'])).not.toThrow();
+    m.setPatterns(['a']);
     expect(m.push(sound('a', 0))).toEqual([{ pattern: 'a', t: 0 }]);
+  });
+
+  it('28b a hum pattern without a baseline is inert; bad baselines, duplicates and invalid patterns still throw (Task 20, U5)', () => {
+    const m = new Matcher(['hum.rise', 'hum.fall', 'a']);
+    const events = [
+      pitch('start', 0, BASELINE_HZ),
+      pitch('update', 100, hzAbove(BASELINE_HZ, 7)),
+      pitch('update', 200, hzAbove(BASELINE_HZ, -7)),
+      pitch('end', 300, BASELINE_HZ),
+    ];
+    expect(run(m, events)).toEqual([]);
+    expect(run(m, [sound('a', 1000)])).toEqual([{ pattern: 'a', t: eventTimeS(1000) }]);
+    for (const bad of [0, -5, NaN, Infinity]) {
+      expect(() => new Matcher(['hum.rise'], bad)).toThrow(RangeError);
+    }
+    expect(() => new Matcher(['hum.rise', 'hum.rise'])).toThrow(RangeError);
+    expect(() => new Matcher(['hum.rise', 'hum.rise'])).toThrow(/Duplicate/);
+    expect(() => new Matcher(['hum.up'])).toThrow(RangeError);
+    expect(() => new Matcher(['hum.rise knock'])).toThrow(RangeError);
+    const withBaseline = new Matcher(['hum.rise'], BASELINE_HZ);
+    expect(withBaseline.push(pitch('update', 0, hzAbove(BASELINE_HZ, 7))).map((x) => x.pattern)).toEqual(['hum.rise']);
   });
 
   it('32 reports pattern strings as given and no speed key on sound matches (Req 1.4, 3.2)', () => {

@@ -17,6 +17,10 @@ export const FIXTURE_TEACH_BASE_MODEL_PATH = resolve(GENERATED_DIR, 'sounds-low-
 export const FIXTURE_TEACH_PITCH_MODEL_PATH = resolve(GENERATED_DIR, 'sounds-low-mid-pitch.json');
 export const FIXTURE_PHASE_WAV_PATH = resolve(GENERATED_DIR, 'phase-test.wav');
 export const FIXTURE_TEACH_INFO_PATH = resolve(GENERATED_DIR, 'teach-info.json');
+export const FIXTURE_HUM_STEADY_WAV_PATH = resolve(GENERATED_DIR, 'hum-steady.wav');      // Task 20
+export const FIXTURE_TWO_HUM_WAV_PATH = resolve(GENERATED_DIR, 'hum-two.wav');
+export const FIXTURE_HUM_MIC_WAV_PATH = resolve(GENERATED_DIR, 'hum-mic.wav');
+export const FIXTURE_PITCH_ONLY_MODEL_PATH = resolve(GENERATED_DIR, 'sounds-pitch-only.json');
 export const TEACH_PAGE_SEED_DIR = resolve(GENERATED_DIR, 'teach-page-seed');   // holds sounds/<label>/<label>-01.wav of two labels
 
 // URLs below the served repository root.
@@ -27,6 +31,11 @@ export const FIXTURE_PHASE_WAV_URL = '/test/web/generated/phase-test.wav';
 export const FIXTURE_TEACH_PITCH_MODEL_URL = '/test/web/generated/sounds-low-mid-pitch.json';
 export const FIXTURE_TAP_WAV_URL = '/test/web/generated/tap-test.wav';
 export const FIXTURE_TEACH_BASE_MODEL_URL = '/test/web/generated/sounds-low-mid.json';
+export const FIXTURE_HUM_STEADY_WAV_URL = '/test/web/generated/hum-steady.wav';   // Task 20
+export const FIXTURE_TWO_HUM_WAV_URL = '/test/web/generated/hum-two.wav';
+export const FIXTURE_PITCH_ONLY_MODEL_URL = '/test/web/generated/sounds-pitch-only.json';
+export const FIXTURE_TEACH_WAV_URL = '/test/web/generated/teach-10.wav';
+export const FIRST_RUN_PAGE_URL = '/test/web/first-run.html';
 export const PAGE_URL = '/test/web/listen.html';
 export const TEACH_PAGE_URL = '/test/web/teach.html';
 export const DEV_TEACH_PAGE_URL = '/teach.html';   // the developer page of Task 17, at the repository root

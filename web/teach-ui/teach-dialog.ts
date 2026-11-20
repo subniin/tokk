@@ -4,10 +4,7 @@
 
 import type { TeachReport } from '../../core/teach';
 import type { SoundModel } from '../../core/types';
-import {
-  WEB_TEACH_BACKGROUND_RECORD_MS, WEB_TEACH_FONT_SIZE_PX, WEB_TEACH_FOCUS_OUTLINE_PX, WEB_TEACH_HUM_RECORD_MS,
-  WEB_TEACH_THUMBNAIL_HEIGHT_PX, WEB_TEACH_THUMBNAIL_WIDTH_PX, WEB_TEACH_WIDTH_PX, WEB_TEACH_Z_INDEX,
-} from '../constants';
+import { WEB_TEACH_BACKGROUND_RECORD_MS, WEB_TEACH_HUM_RECORD_MS, WEB_TEACH_THUMBNAIL_HEIGHT_PX, WEB_TEACH_THUMBNAIL_WIDTH_PX } from '../constants';
 import { drawWaveform } from '../overlay/draw';
 import type { DrawColours } from '../overlay/draw';
 import { OVERLAY_COLOURS as C } from '../overlay/theme';
@@ -17,6 +14,9 @@ import type { RecordKind } from '../record-kind';
 import { countLine, exampleLine, limitLine, replaceLine, reportLines, savedLine, savingLine, stepText } from './format';
 import { doneState, initialState, quietProgress, reduce, saveState, shouldUpdateProgress } from './state';
 import type { TeachAction, TeachExample, TeachState } from './state';
+import { TEACH_DIALOG_STYLE } from './style';
+import { fillText, TEACH_TEXT_DEFAULTS } from './text';
+import type { ResolvedTeachText } from './text';
 
 export type RecordMessage = Extract<WorkerToMain, { type: 'record-progress' | 'record-segment' | 'record-limit' | 'record-trained' | 'record-failed' }>;
 
@@ -38,6 +38,7 @@ export interface TeachDialogOptions {
   // until it settles, then shows 	ext when given. A rejection counts as { stored: false, text: <the message> }.
   onSave(model: SoundModel, report: TeachReport): { stored: boolean } | Promise<{ stored: boolean; text?: string }>;
   existingLine?: string | null;     // replaces the line about existing examples; null shows no line
+  text?: ResolvedTeachText;         // the resolved TeachOptions.text (Task 20), default the texts of text.ts
   onCancel(): void;                 // the user cancelled (button or Esc) before saving
   onClose?(): void;                 // the dialog is gone, whatever the way it closed
 }
@@ -50,32 +51,7 @@ const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)';
 const TITLE_ID = 'tokk-teach-title';
 const REASON_ID = 'tokk-teach-reason';
 const DEFAULT_PIXEL_RATIO = 1;
-
-const STYLE = `
-:host { all: initial; display: block; position: fixed; z-index: ${WEB_TEACH_Z_INDEX};
-  font-family: system-ui, sans-serif; font-size: ${WEB_TEACH_FONT_SIZE_PX}px; line-height: 1.4; font-weight: 400;
-  color: ${C.text}; text-align: left; }
-* { box-sizing: border-box; transition: none; animation: none; }
-dialog { width: min(${WEB_TEACH_WIDTH_PX}px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; padding: 16px;
-  background: ${C.panelBackground}; color: ${C.text}; border: 1px solid ${C.backgroundMark}; border-radius: 4px; }
-dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
-h2 { margin: 0 0 8px; font-size: 1.25em; font-weight: 700; }
-p { margin: 8px 0; }
-ul, ol { margin: 8px 0; padding-left: 20px; }
-ol.examples { list-style: none; padding: 0; max-height: 240px; overflow-y: auto; }
-li.example { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 4px 0; border-top: 1px solid ${C.headerBackground}; }
-li.example .text { flex: 1 1 160px; }
-canvas { display: block; width: ${WEB_TEACH_THUMBNAIL_WIDTH_PX}px; height: ${WEB_TEACH_THUMBNAIL_HEIGHT_PX}px; background: ${C.canvasBackground}; }
-progress { width: 100%; accent-color: ${C.waveform}; }
-.footer { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
-.reason { margin: 8px 0 0; }
-.error { margin: 8px 0; padding: 4px 8px; background: ${C.warningBackground}; color: ${C.warningText}; }
-button { font: inherit; color: ${C.text}; background: ${C.headerBackground}; border: 1px solid ${C.text}; border-radius: 4px;
-  padding: 4px 12px; min-height: 32px; cursor: pointer; }
-button[aria-disabled="true"] { border-style: dashed; cursor: not-allowed; }
-button:focus-visible, h2:focus-visible { outline: ${WEB_TEACH_FOCUS_OUTLINE_PX}px solid ${C.focusOutline}; outline-offset: 2px; }
-[hidden] { display: none; }
-`;
+const ACCENT_PROPERTY = '--tokk-accent';
 
 function el<K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string): HTMLElementTagNameMap[K] {
   const e = document.createElement(tag);
@@ -108,7 +84,19 @@ function thumbnailView(e: TeachExample): WaveformView {
   };
 }
 
-function thumbnail(e: TeachExample): HTMLCanvasElement {
+// The waveform colour of the thumbnails: --tokk-accent as the dialog sees it, read once per thumbnail. A value that the
+// canvas does not take as a colour leaves the default.
+function thumbnailColours(ctx: CanvasRenderingContext2D, from: Element): DrawColours {
+  const accent = getComputedStyle(from).getPropertyValue(ACCENT_PROPERTY).trim();
+  if (accent === '') return THUMB_COLOURS;
+  ctx.fillStyle = C.waveform;
+  const before = ctx.fillStyle;
+  ctx.fillStyle = accent;
+  const waveform = ctx.fillStyle;
+  return waveform === before ? THUMB_COLOURS : { ...THUMB_COLOURS, waveform };
+}
+
+function thumbnail(e: TeachExample, from: Element): HTMLCanvasElement {
   const canvas = el('canvas');
   const dpr = typeof window.devicePixelRatio === 'number' && window.devicePixelRatio > 0 ? window.devicePixelRatio : DEFAULT_PIXEL_RATIO;
   canvas.width = Math.round(WEB_TEACH_THUMBNAIL_WIDTH_PX * dpr);
@@ -118,7 +106,7 @@ function thumbnail(e: TeachExample): HTMLCanvasElement {
   const ctx = canvas.getContext('2d');
   if (ctx) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    drawWaveform(ctx, thumbnailView(e), THUMB_COLOURS, WEB_TEACH_THUMBNAIL_WIDTH_PX, WEB_TEACH_THUMBNAIL_HEIGHT_PX);
+    drawWaveform(ctx, thumbnailView(e), thumbnailColours(ctx, from), WEB_TEACH_THUMBNAIL_WIDTH_PX, WEB_TEACH_THUMBNAIL_HEIGHT_PX);
   }
   return canvas;
 }
@@ -128,6 +116,7 @@ type View = 'live' | 'review' | 'saved';
 export function mountTeachDialog(o: TeachDialogOptions): TeachDialogHandle {
   let state: TeachState = initialState({ label: o.label, target: o.examples });
   const kind = state.kind;
+  const texts = o.text ?? TEACH_TEXT_DEFAULTS;
   const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
   let destroyed = false;
   let view: View | null = null;
@@ -142,10 +131,10 @@ export function mountTeachDialog(o: TeachDialogOptions): TeachDialogHandle {
   host.setAttribute('data-tokk-teach', '');
   const root = host.attachShadow({ mode: 'open' });
   const style = el('style');
-  style.textContent = STYLE;
+  style.textContent = TEACH_DIALOG_STYLE;
   const dialog = el('dialog');
   dialog.setAttribute('aria-labelledby', TITLE_ID);
-  const title = el('h2', undefined, `Teach "${o.label}"`);
+  const title = el('h2', undefined, fillText(texts.title, { label: o.label }));
   title.id = TITLE_ID;
   title.tabIndex = -1;
   const status = el('p');
@@ -210,9 +199,9 @@ export function mountTeachDialog(o: TeachDialogOptions): TeachDialogHandle {
     reason = makeReason();
     parts.push(limit, reason);
     body.replaceChildren(...parts);
-    doneButton = button('done', 'Done');
+    doneButton = button('done', texts.done);
     doneButton.setAttribute('aria-describedby', REASON_ID);
-    const cancel = button('cancel', 'Cancel (Esc)');
+    const cancel = button('cancel', texts.cancel);
     footer.replaceChildren(doneButton, cancel);
     saveButton = null;
   };
@@ -237,26 +226,26 @@ export function mountTeachDialog(o: TeachDialogOptions): TeachDialogHandle {
     reason = makeReason();
     parts.push(reason);
     body.replaceChildren(...parts);
-    const again = button('again', 'Record again');
-    const cancel = button('cancel', 'Cancel (Esc)');
+    const again = button('again', texts.again);
+    const cancel = button('cancel', texts.cancel);
     if (state.error !== null) {
       footer.replaceChildren(again, cancel);
       saveButton = null;
     } else {
-      saveButton = button('save', 'Save');
+      saveButton = button('save', texts.save);
       saveButton.setAttribute('aria-describedby', REASON_ID);
       footer.replaceChildren(saveButton, again, cancel);
     }
     doneButton = null;
   };
 
-  const savedNow = (): string => (saving ? savingLine() : savedText ?? savedLine(state.saveStored));
+  const savedNow = (): string => (saving ? savingLine() : savedText ?? savedLine(state.saveStored, texts));
 
   const buildSaved = (): void => {
     const saved = el('p', undefined, savedNow());
     saved.setAttribute('data-role', 'saved');
     body.replaceChildren(lines(), saved);
-    closeButton = button('close', 'Close');
+    closeButton = button('close', texts.close);
     closeButton.setAttribute('aria-disabled', saving ? 'true' : 'false');
     footer.replaceChildren(closeButton);
     reason = null;
@@ -269,7 +258,7 @@ export function mountTeachDialog(o: TeachDialogOptions): TeachDialogHandle {
     li.setAttribute('data-example', e.id);
     const del = button('delete', 'Delete');
     del.setAttribute('aria-label', `Delete example ${e.number}`);
-    li.append(el('span', 'text', exampleLine(e)), thumbnail(e), del);
+    li.append(el('span', 'text', exampleLine(e)), thumbnail(e, dialog), del);
     return li;
   };
 
@@ -301,14 +290,14 @@ export function mountTeachDialog(o: TeachDialogOptions): TeachDialogHandle {
 
   const refresh = (): void => {
     if (view === 'live') {
-      setText(status, stepText(state));
+      setText(status, stepText(state, texts));
       refreshProgress();
-      if (count !== null) setText(count, countLine(state));
+      if (count !== null) setText(count, countLine(state, texts));
       syncList();
       if (limit !== null) limit.hidden = !state.limitReached;
-      if (doneButton !== null && reason !== null) setGate(doneButton, reason, doneState(state));
+      if (doneButton !== null && reason !== null) setGate(doneButton, reason, doneState(state, texts));
     } else if (view === 'review') {
-      setText(status, state.error !== null ? 'Training failed.' : 'Check the result, then save it.');
+      setText(status, state.error !== null ? texts.failed : texts.review);
       if (saveButton !== null && reason !== null) setGate(saveButton, reason, saveState(state));
       else if (reason !== null) setText(reason, '');
     } else if (view === 'saved') {
