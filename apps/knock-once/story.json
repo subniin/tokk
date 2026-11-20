@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "start": "q1",
+  "nodes": {
+    "q1": { "type": "question", "text": "Is the room colder now than when you sat down?", "yes": "q2", "no": "q3" },
+    "q2": { "type": "question", "text": "Did the clock on the wall stop ticking a moment ago?", "yes": "q4", "no": "q3" },
+    "q3": { "type": "question", "text": "Did you come into this room alone tonight?", "yes": "q5", "no": "q6" },
+    "q4": { "type": "question", "text": "Is the candle flame leaning toward the empty chair?", "yes": "q7", "no": "q5" },
+    "q5": { "type": "question", "text": "May I write my name in the dust on the table?", "yes": "q7", "no": "q6" },
+    "q6": { "type": "question", "text": "Can you hear a second breath in the room, slow and quiet?", "yes": "q8", "no": "chair" },
+    "q7": { "type": "question", "text": "Will you leave the small lamp in the window burning for me?", "yes": "lamp", "no": "q8" },
+    "q8": { "type": "question", "text": "Shall I open the door that was locked when you came in?", "yes": "door", "no": "chair" },
+    "lamp": { "type": "ending", "title": "The lamp stays lit", "text": "The cold drains out of the room. The spirit is at peace, and the little lamp in the window burns on, warm and steady." },
+    "door": { "type": "ending", "title": "The door is open", "text": "A door you had never noticed swings open without a sound. Beyond it is a soft grey light, and nobody can say where it leads." },
+    "chair": { "type": "ending", "title": "The empty chair", "text": "The candle stands straight again. The chair across the table stays empty, and the room goes quiet." }
+  }
+}

@@ -34,6 +34,10 @@ export const TEACH_TEXTS: Readonly<Record<string, Readonly<Record<string, string
 export function heardSound(label: string, listening: boolean): string {
   return `Heard: ${label} ✓${listening ? '' : IGNORED}`;
 }
+// Task 23 (requirement 1): the toggle pattern that was heard, the same whether it turned listening on or off.
+export function heardToggle(): string {
+  return 'Heard: click click click ✓';
+}
 export function heardUnknown(listening: boolean): string {
   return `Heard: unknown sound ?${listening ? '' : IGNORED}`;
 }

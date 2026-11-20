@@ -14,7 +14,7 @@ import { allSteps, missingSteps } from './steps';
 import type { ModelLike, TeachStep } from './steps';
 import {
   CANCELLED_TEXT, didAlreadyAtList, didBack, didListening, didNeedsMicrophone, didNothingNoTarget, didNothingNoTiming, didOpened,
-  didScrolled, heardHum, heardHumEnded, heardSound, heardUnknown, STEP_NAMES, withKey,
+  didScrolled, heardHum, heardHumEnded, heardSound, heardToggle, heardUnknown, STEP_NAMES, withKey,
 } from './text';
 import type { ListeningState } from './text';
 import { byId, isDialogOpen, keyInput, renderProgress, renderState, setHidden, setText } from './ui';
@@ -171,7 +171,10 @@ function togglePause(): void {
 const glue: Glue = {
   activate: (pageMs) => activate(pageMs),
   back: () => back(),
-  toggle: () => toggle(),
+  toggle: () => {
+    toggle();
+    setText('heard', heardToggle());   // only a heard toggle comes here; the key L and the button change no "Heard:" line
+  },
   hum(direction, t, speed) {
     window.scrollBy({ top: hum.update({ t, speed, direction }), behavior: 'instant' });
     const now = performance.now();

@@ -264,6 +264,7 @@ test.describe.serial('Hands-Free with the generated stream', () => {
     // S5: three clicks turn listening off.
     await expect(page.locator('#state')).toContainText('Listening is OFF', { timeout: TIMES.s5.atMs[2] + STREAM_SLACK_MS });
     await expect(page.locator('#did')).toHaveText('Did: listening is now off');
+    await expect(page.locator('#heard')).toHaveText('Heard: click click click ✓');
     expect(await page.locator('[data-scan="current"]').count(), 'the frame is hidden while listening is off').toBe(0);
 
     // S6: one click does nothing, and the text says it was ignored.
@@ -275,6 +276,7 @@ test.describe.serial('Hands-Free with the generated stream', () => {
     // S7: three clicks turn it on again.
     await expect(page.locator('#state')).toContainText('Listening is ON', { timeout: TIMES.s7.atMs[2] + STREAM_SLACK_MS });
     await expect(page.locator('#did')).toHaveText('Did: listening is now on');
+    await expect(page.locator('#heard')).toHaveText('Heard: click click click ✓');
     seen.check();
   });
 

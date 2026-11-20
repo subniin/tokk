@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   CANCELLED_TEXT, didAlreadyAtList, didBack, didListening, didNeedsMicrophone, didNothingListeningOff, didNothingNoTarget, didNothingNoTiming,
-  didOpened, didScrolled, heardHum, heardHumEnded, heardSound, heardUnknown, progressItems, progressLine, stateText, withKey,
+  didOpened, didScrolled, heardHum, heardHumEnded, heardSound, heardToggle, heardUnknown, progressItems, progressLine, stateText, withKey,
 } from '../apps/hands-free/src/text';
 
 describe('recognition texts (U6)', () => {
@@ -59,6 +59,16 @@ describe('recognition texts (U6)', () => {
     for (const text of [heardSound('click', true), heardUnknown(true), heardHum('rise', 1), heardHum('fall', 1)]) {
       expect(text).toMatch(/click ✓|unknown sound \?|hum [↑↓] speed/);
     }
+  });
+
+  // Task 23, U12 (requirement 1): the toggle that was heard, whether it turned listening on or off.
+  it('the heard toggle shows the three clicks with a check and never says ignored', () => {
+    const turnedOff = heardToggle();
+    const turnedOn = heardToggle();
+    expect(turnedOff).toBe('Heard: click click click ✓');
+    expect(turnedOn).toBe(turnedOff);
+    expect(turnedOff).not.toContain('ignored');
+    expect(turnedOff).toMatch(/click ✓/);
   });
 
   it('the state texts say the state in words', () => {
