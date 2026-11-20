@@ -135,3 +135,6 @@ export const SYNTH_FIXTURE_QUICK_SEED_OFFSET = 1000;  // quick files use other r
 export const SYNTH_FIXTURE_BACKGROUND_MS = 2000;      // length of the steady noise after the lead
 export const SYNTH_FIXTURE_BACKGROUND_LEVELS_DBFS = [-45, -35];   // white, then pink
 export const CORPUS_SCORE_BUDGET_MS = 15000;
+
+// Model file format
+export const MODEL_VERSION = 1;   // version of sounds.json written by training; no unit

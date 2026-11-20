@@ -139,3 +139,5 @@ Runtime target: `test/teach-core.test.ts` under 30 s at `PBT_RUNS=100` and under
 
 ## Measured values
 Filled in during the work: runtime of `test/teach-core.test.ts` at `PBT_RUNS` 20 and 100, runtime of `test/teach.test.ts` before and after (should be equal within noise), and any difference found by test 1 together with its cause.
+
+Recorded later: with `PBT_RUNS=1000`, `test/teach-core.test.ts` plus `test/teach.test.ts` passed, 47 tests, 224 s (measured 2026-11-20 by the operator).

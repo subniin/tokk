@@ -1,3 +1,5 @@
 node_modules
 dist
 docs/_planning/
+test-results/
+playwright-report/

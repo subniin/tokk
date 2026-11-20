@@ -6,6 +6,7 @@ import {
   DISTANCE_THRESHOLD_FACTOR,
   KNN_K,
   MIN_EXAMPLES_PER_LABEL,
+  MODEL_VERSION,
   STD_FLOOR_ABSOLUTE,
   STD_FLOOR_RANGE_FRACTION,
   THRESHOLD_PERCENTILE,
@@ -143,7 +144,7 @@ export function trainVectors(
   }
 
   return {
-    version: 1,
+    version: MODEL_VERSION,
     k: KNN_K,
     sampleRate,
     mean,

@@ -9,5 +9,6 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["core", "node", "tools", "scripts", "test", "vitest.config.ts"]
+  "include": ["core", "node", "tools", "scripts", "test", "vitest.config.ts"],
+  "exclude": ["test/web"]
 }
