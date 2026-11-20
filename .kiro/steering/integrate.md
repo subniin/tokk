@@ -9,7 +9,7 @@ fileMatchPattern: ["apps/**/*", "docs/integration.md"]
 - Teach first: make one folder per sound under `examples/sounds/<label>/` with at least 5 recordings each, 10 recommended. Use the teach page below, or record the WAV files yourself.
 - Rebuild `sounds.json` next: run `npm run sounds:rebuild`, or use the MCP `teach` tool. Read the confused pairs and warnings it prints.
 - Then connect patterns: `listen({ sounds, on })` for one set of patterns, or `modes` when the patterns change with the state of the app.
-- Last, test with recordings: write `expectEvents` tests against WAV files.
+- Last, test with recordings: write one `expectEvents` test per pattern against a WAV file, with `patterns` (the pattern set of the app) and `matches` (the patterns that must fire).
 
 ## Public API
 `listen` and `loadSounds` are in the browser bundle of `tokk`; `expectEvents` is in `tokk/node`. Node code can also use `createEngine` and `runSamples` from `tokk` directly. Call `listen()` after a user gesture (a click) on a page served over HTTPS or from `localhost`, because the browser asks for the microphone then.
@@ -66,6 +66,9 @@ Test with a recording (Node, from `tokk/node`):
 import { expectEvents } from 'tokk/node';
 
 await expectEvents('clap-2.wav', ['clap', 'clap'], { sounds });
+
+// Check the patterns too: the recording runs through the engine with exactly this set.
+await expectEvents('clap-2.wav', ['clap', 'clap'], { sounds, patterns: ['clap clap', 'clap clap clap'], matches: ['clap clap'] });
 ```
 In this repository a recording to try it on is `fixtures/audio/synth/quick/quick-01.wav` with `fixtures/audio/synth/sounds.json`.
 

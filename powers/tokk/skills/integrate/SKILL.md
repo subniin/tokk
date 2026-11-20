@@ -9,7 +9,7 @@ description: Use when the user wants sound control, a clap, a knock, a hum or ha
 1. Teach first. Make one folder per sound (`sounds/<name>/`), with at least 5 recordings each and 10 recommended. Use the teach page (see "Teach page") or record the WAV files yourself.
 2. Build `sounds.json`. Use the `teach` MCP tool on the sounds folder (see the MCP note), or the teach page. Read the confused pairs and warnings.
 3. Connect patterns. Use `listen({ sounds, on })` for one set of patterns, or `modes` when the patterns change with the state of the app.
-4. Test last. Write one `expectEvents` test per pattern against a WAV file.
+4. Test last. Write one `expectEvents` test per pattern against a WAV file, with `patterns` (the pattern set of the app) and `matches` (the patterns that must fire).
 
 Check first that `sounds.json` and the example folders exist, unless the app teaches every sound on the first run (see "First run without sounds"). If they do not, stop and tell the user what is missing.
 
@@ -99,6 +99,9 @@ await ears.teach('knock', { ui: true, text: { title: 'Summon {label}', record: '
 import { expectEvents } from 'tokk/node';
 
 await expectEvents('clap-2.wav', ['clap', 'clap'], { sounds });
+
+// Check the patterns too: the recording runs through the engine with exactly this set.
+await expectEvents('clap-2.wav', ['clap', 'clap'], { sounds, patterns: ['clap clap', 'clap clap clap'], matches: ['clap clap'] });
 ```
 
 ## Common mistakes

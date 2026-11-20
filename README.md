@@ -49,6 +49,9 @@ The result is the same as running `npm run sounds:rebuild`: WAV files in `sounds
 import { expectEvents } from 'tokk/node';
 
 await expectEvents('clap-2.wav', ['clap', 'clap'], { sounds });
+
+// Also check the patterns: the recording runs through the engine with exactly this set.
+await expectEvents('clap-2.wav', ['clap', 'clap'], { sounds, patterns: ['clap clap', 'clap clap clap'], matches: ['clap clap'] });
 ```
 
 The MCP server has four tools: `teach`, `listen`, `score` and `spectrogram`. In this repository, run it with `npm run mcp`. After publish, the `tokk-mcp` bin starts it.
