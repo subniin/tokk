@@ -541,7 +541,8 @@ describe('integrate.md', () => {
       'sounds:rebuild', 'teach', 'sounds.json', 'listen(', 'modes', 'expectEvents', 'tokk/node',
       "'clap clap'", "'clap _ clap'", "'hum.rise'", 'e.speed', 'debug: true', "ears.teach('clap', { ui: true })",
       'pause', 'resume', 'stop', 'setMode', 'start', 'question', "expectEvents('clap-2.wav', ['clap', 'clap'], { sounds })",
-      'plan 2', 'loadSounds', 'createEngine', 'runSamples',
+      // Task 18 (requirement 9.5): 'plan 2' removed. It came from the stale "belongs to the browser layer of plan 2" text.
+      'loadSounds', 'createEngine', 'runSamples',
       'calibration', 'sound-in-calibration', 'background', 'reserved', 'hum` folder', 'prefix', '350', '1000',
       'units', 'privacy',
     ];

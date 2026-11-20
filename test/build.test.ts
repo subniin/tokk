@@ -1,23 +1,30 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import vm from 'node:vm';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { build as esbuild } from 'esbuild';
 import { WORKLET_PROCESSOR_NAME } from '../web/worklet-source';
 import { build, buildBundles, bundleWorkerSource, workerSourcePlugin } from '../scripts/build';
+import { TOOLS } from '../tools/mcp-ears/tools';
 import { findNodeGlobalUse } from './helpers/node-globals';
 
 const BUILD_TEST_TIMEOUT_MS = 120_000;
 const PACK_TEST_TIMEOUT_MS = 60_000;
 const TSC_TEST_TIMEOUT_MS = 120_000;
 const NODE_CHILD_TIMEOUT_MS = 30_000;
+const MCP_START_TIMEOUT_MS = 30_000;   // Task 18: time allowed for the bundled server to start and answer
+const MCP_TEST_TIMEOUT_MS = 60_000;
 const UNSUPPORTED_RATE_HZ = 8000;
 
 const ROOT = resolve('.');
 const TOKK_JS = join(ROOT, 'dist', 'tokk.js');
 const NODE_JS = join(ROOT, 'dist', 'node.js');
+const MCP_JS = join(ROOT, 'dist', 'mcp.js');   // Task 18
 const TSC_BIN = join(ROOT, 'node_modules', 'typescript', 'bin', 'tsc');
 const PROBE_FILE = join(ROOT, 'core', `__dom-probe-${process.pid}.ts`);
 
@@ -101,11 +108,56 @@ describe('build output', () => {
   });
 
   it('two builds give byte-identical bundles', async () => {
-    const before = [readFileSync(TOKK_JS), readFileSync(NODE_JS)];
+    const before = [readFileSync(TOKK_JS), readFileSync(NODE_JS), readFileSync(MCP_JS)];   // Task 18 (1.6, B5): dist/mcp.js too
     await buildBundles();
     expect(readFileSync(TOKK_JS).equals(before[0])).toBe(true);
     expect(readFileSync(NODE_JS).equals(before[1])).toBe(true);
+    expect(readFileSync(MCP_JS).equals(before[2])).toBe(true);
   }, BUILD_TEST_TIMEOUT_MS);
+});
+
+// Task 18, requirements 1.1 to 1.3 and 1.8 (tests B1 to B3).
+describe('dist/mcp.js (Task 18)', () => {
+  // A static import or export line, a side-effect import, or a call of import() or require() with one of the two packages.
+  // Comments that show an import in a doc sample do not start a line with `import` and are not matched.
+  const PKG = String.raw`["'\`](?:@modelcontextprotocol\/sdk|zod)["'\`/]`;
+  const BARE_IMPORT = new RegExp(String.raw`^\s*(?:import|export)\b[^\n]*?\bfrom\s*${PKG}|^\s*import\s*${PKG}|(?<![*\w.])(?:import|require)\s*\(\s*${PKG}`, 'm');
+
+  it('B1: exists after the build, starts with the shebang and has no bare SDK or zod import', () => {
+    expect(existsSync(MCP_JS)).toBe(true);
+    const text = readFileSync(MCP_JS, 'utf8');
+    expect(text.startsWith('#!/usr/bin/env node\n')).toBe(true);
+    expect(text).not.toMatch(BARE_IMPORT);
+    // The check can fail: it catches each form.
+    for (const sample of ['import { z } from "zod";', 'import "zod";', 'const m = await import("@modelcontextprotocol/sdk/x.js");', 'const r = require("zod");']) {
+      expect(sample, sample).toMatch(BARE_IMPORT);
+    }
+  });
+
+  it('B2: package.json bin points at an existing file and dependencies stay absent', () => {
+    const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+    expect(pkg.bin).toEqual({ 'tokk-mcp': './dist/mcp.js' });
+    expect(existsSync(join(ROOT, pkg.bin['tokk-mcp']))).toBe(true);
+    expect(pkg.dependencies).toBeUndefined();
+    expect(pkg.peerDependencies).toBeUndefined();
+  });
+
+  it('B3: a copy of dist/mcp.js alone in a temporary folder starts and lists the tools of TOOLS', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'tokk-mcp-'));
+    let client: Client | undefined;
+    try {
+      const copy = join(dir, 'mcp.js');
+      copyFileSync(MCP_JS, copy);
+      const transport = new StdioClientTransport({ command: process.execPath, args: [copy], cwd: dir, stderr: 'pipe' });
+      client = new Client({ name: 'build-test', version: '1.0.0' });
+      await client.connect(transport, { timeout: MCP_START_TIMEOUT_MS });
+      const { tools } = await client.listTools(undefined, { timeout: MCP_START_TIMEOUT_MS });
+      expect(tools.map((t) => t.name).sort()).toEqual(TOOLS.map((t) => t.name).sort());
+    } finally {
+      await client?.close().catch(() => undefined);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }, MCP_TEST_TIMEOUT_MS);
 });
 
 describe('Worker source', () => {
@@ -189,6 +241,7 @@ describe('Worker source', () => {
 });
 
 describe('package contents', () => {
+  // Task 18 (1.8, B4): dist/mcp.js is listed, and nothing under powers/ or .kiro/.
   it('npm pack --dry-run lists only dist/**, package.json, README.md and LICENSE', () => {
     const r = spawnSync('npm pack --dry-run --json', {
       cwd: ROOT, encoding: 'utf8', shell: true, timeout: PACK_TEST_TIMEOUT_MS,
@@ -198,10 +251,10 @@ describe('package contents', () => {
     for (const p of files) {
       expect(p === 'package.json' || p === 'README.md' || p === 'LICENSE' || p.startsWith('dist/'), p).toBe(true);
     }
-    for (const required of ['dist/tokk.js', 'dist/node.js', 'package.json', 'README.md', 'LICENSE']) {
+    for (const required of ['dist/tokk.js', 'dist/node.js', 'dist/mcp.js', 'package.json', 'README.md', 'LICENSE']) {
       expect(files, required).toContain(required);
     }
-    for (const forbidden of ['test/', 'fixtures/', '.kiro/', 'core/', 'web/', 'node/', 'docs/']) {
+    for (const forbidden of ['test/', 'fixtures/', '.kiro/', 'powers/', 'core/', 'web/', 'node/', 'docs/']) {
       expect(files.filter((p) => p.startsWith(forbidden)), forbidden).toEqual([]);
     }
   }, PACK_TEST_TIMEOUT_MS);

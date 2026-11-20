@@ -1,5 +1,5 @@
 // Build and dev server for the npm package (Task 13).
-//   npm run build   writes dist/tokk.js, dist/node.js and dist/types/**
+//   npm run build   writes dist/tokk.js, dist/node.js, dist/mcp.js (the tokk-mcp bin, Task 18) and dist/types/**
 //   npm run dev     rebuilds dist/tokk.js and dist/teach-page.js (the developer page teach.html, Task 17) on every
 //                   save and serves the repository root on localhost. The package build does not write teach-page.js.
 // The script writes only below dist/, writes no source maps and sends nothing over the network.
@@ -95,8 +95,18 @@ const NODE_OPTIONS: BuildOptions = {
   platform: 'node',
 };
 
+// The MCP server as the `tokk-mcp` bin (Task 18). The SDK and zod are devDependencies, so they are bundled in and the
+// package keeps zero runtime dependencies. Not part of `npm run dev`.
+const MCP_OPTIONS: BuildOptions = {
+  ...SHARED_OPTIONS,
+  entryPoints: [join(ROOT, 'tools', 'mcp-ears', 'server.ts')],
+  outfile: join(DIST, 'mcp.js'),
+  platform: 'node',
+  banner: { js: '#!/usr/bin/env node' },
+};
+
 export async function buildBundles(): Promise<void> {
-  await Promise.all([esbuild(BROWSER_OPTIONS), esbuild(NODE_OPTIONS)]);
+  await Promise.all([esbuild(BROWSER_OPTIONS), esbuild(NODE_OPTIONS), esbuild(MCP_OPTIONS)]);
 }
 
 function emitDeclarations(): void {
@@ -141,7 +151,7 @@ async function main(): Promise<void> {
       await dev();
     } else {
       await build();
-      console.log('Build finished: dist/tokk.js, dist/node.js, dist/types/');
+      console.log('Build finished: dist/tokk.js, dist/node.js, dist/mcp.js, dist/types/');
     }
   } catch (e) {
     console.error(`Build failed: ${e instanceof Error ? e.message : String(e)}`);

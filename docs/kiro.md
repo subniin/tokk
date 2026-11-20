@@ -1,0 +1,101 @@
+# Kiro in this repository
+
+One page that lists every Kiro feature used here. Paths are real files and folders. Names marked "after build" or "after publish" do not exist in a clean checkout.
+
+## Specs
+Each task has a spec folder with three files: requirements, design and tasks. The folder `_new-app` is a template for another project, not a spec of this repository.
+
+| Path | What it is |
+|---|---|
+| `.kiro/specs/task-01-wav/` | Task 1, WAV reading and writing |
+| `.kiro/specs/task-02-synth/` | Task 2, synthetic test sounds |
+| `.kiro/specs/task-03-features/` | Task 3, features |
+| `.kiro/specs/task-04-segment/` | Task 4, segmenter |
+| `.kiro/specs/task-05-knn/` | Task 5, classifier |
+| `.kiro/specs/task-06-pitch/` | Task 6, pitch |
+| `.kiro/specs/task-07-grammar/` | Task 7, pattern grammar |
+| `.kiro/specs/task-08-engine/` | Task 8, engine |
+| `.kiro/specs/task-09a-score/` | Task 9a, scoring |
+| `.kiro/specs/task-09b-spectrogram/` | Task 9b, spectrogram |
+| `.kiro/specs/task-10-mcp/` | Task 10, MCP server |
+| `.kiro/specs/task-11a-quick-hooks/` | Task 11a, quick hooks |
+| `.kiro/specs/task-11b-sound-hooks/` | Task 11b, sound hooks |
+| `.kiro/specs/task-12-teach-core/` | Task 12, teaching core |
+| `.kiro/specs/task-13-build/` | Task 13, build and package |
+| `.kiro/specs/task-14-listen/` | Task 14, browser `listen()` |
+| `.kiro/specs/task-15-overlay/` | Task 15, debug overlay |
+| `.kiro/specs/task-16-teach-dialog/` | Task 16, teach dialog |
+| `.kiro/specs/task-17-teach-page/` | Task 17, teach page |
+| `.kiro/specs/task-18-kiro-power/` | Task 18, this power, the agents and the template |
+| `.kiro/specs/_new-app/` | Template: fill one table, Kiro writes the spec |
+
+## Hooks
+Files in `.kiro/hooks/`:
+
+| Path | What it does |
+|---|---|
+| `.kiro/hooks/corpus-score.json` | Scores the best labelled set when a file under `core/` is saved |
+| `.kiro/hooks/pbt-quick.json` | Runs the quick property tests when the segmenter, the grammar or the classifier is saved |
+| `.kiro/hooks/public-api-only.json` | Fails when a file in an app folder imports from `core/` instead of the public API |
+| `.kiro/hooks/sounds-rebuild.json` | Rebuilds the sounds model when a recording is saved |
+| `.kiro/hooks/web-smoke.json` | Runs the browser smoke test when a file below `web/` is saved |
+
+## Steering
+Files in `.kiro/steering/`:
+
+| Path | What it holds |
+|---|---|
+| `.kiro/steering/integrate.md` | How to integrate sound control into an app: order of work, browser API, mistakes, rules |
+| `.kiro/steering/layers.md` | Which layer may import which |
+| `.kiro/steering/privacy.md` | Privacy rules |
+| `.kiro/steering/ui.md` | UI rules |
+| `.kiro/steering/units.md` | Unit rules |
+| `.kiro/steering/web-audio.md` | Web Audio rules |
+
+## MCP
+| Path | What it is |
+|---|---|
+| `.kiro/settings/mcp.json` | Starts the server `mcp-ears` inside this repository with `npm run --silent mcp` |
+| `tools/mcp-ears/` | Source of the server and its four tools: `teach`, `listen`, `score`, `spectrogram` |
+| `dist/mcp.js` (after build) | The server as one file with the SDK bundled in, started by the bin `tokk-mcp` |
+
+## Power
+The folder `powers/tokk` is a Kiro power in the Agent Plugins 1.0.0 format.
+
+| Path | What it is |
+|---|---|
+| `powers/tokk/plugin.json` | Manifest (name, version, author, keywords) |
+| `powers/tokk/mcp.json` | Starts the `tokk-mcp` bin through `npx` |
+| `powers/tokk/skills/integrate/SKILL.md` | Add Tokk to a web app |
+| `powers/tokk/skills/tune-sounds/SKILL.md` | Tune sounds with the MCP tools |
+| `powers/tokk/skills/new-app/SKILL.md` | Fill the table of the `_new-app` template |
+
+Install: open the Powers panel, choose Add Custom Power, then Import from folder (folder `powers/tokk`) or from GitHub.
+
+The MCP part of the power works only after `npm publish` of the package `tokk`. Before that, `npx` fails with a not-found error. The `npx` start is therefore an "after publish" feature. Inside this repository the power is not needed: `.kiro/settings/mcp.json` runs the server from source.
+
+## Agents
+Workspace agents in `.kiro/agents/`:
+
+| Path | What it does |
+|---|---|
+| `.kiro/agents/sound-tuner.json` | Reads scores, teach reports and spectrograms and proposes what to record next. It cannot run shell commands or use the web. |
+| `.kiro/agents/integrator.json` | Wires Tokk into an app from a sounds list and a pattern table. It runs only `npm test` and `npx vitest` in the shell. |
+
+Run an agent without a person at the keyboard:
+
+```
+kiro-cli chat --v3 --agent <name> --no-interactive
+```
+
+In this mode a permission that needs a question counts as denied.
+
+## Documentation checked
+The operator checked these pages on 2026-11-20:
+
+| URL | Used for |
+|---|---|
+| https://kiro.dev/docs/powers/create/ | Power folder and manifest |
+| https://kiro.dev/blog/powers-supports-plugins/ | Agent Plugins format for powers |
+| https://kiro.dev/docs/custom-agents/configuration-reference/ | Agent fields |
+| https://kiro.dev/docs/permissions/ | Permission rules |

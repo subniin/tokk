@@ -1,0 +1,26 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "tokk",
+  "version": "0.1.0",
+  "description": "Add sound control (claps, knocks, hums and sounds you teach) to a web app, and tune the sounds with the Tokk MCP server.",
+  "author": {
+    "name": "subniin",
+    "url": "https://github.com/subniin"
+  },
+  "repository": "https://github.com/subniin/tokk",
+  "homepage": "https://github.com/subniin/tokk",
+  "license": "MIT",
+  "keywords": [
+    "sound control",
+    "clap",
+    "knock",
+    "hands-free",
+    "teach sound",
+    "whistle",
+    "hum",
+    "microphone",
+    "sound detection",
+    "audio events",
+    "tokk"
+  ]
+}
