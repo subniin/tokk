@@ -7,12 +7,15 @@ import { PitchTracker } from './continuous/pitch';
 import type { ContinuousTracker } from './continuous/tracker';
 import { Matcher } from './grammar';
 import { Segmenter } from './segment';
-import type { Classifier, MatchEvent, Nearest, Segment, SoundEvent, SoundModel } from './types';
+import type { Classifier, ClassifyResult, MatchEvent, Nearest, Segment, SoundEvent, SoundModel } from './types';
 
 const MS_PER_SECOND = 1000;
 
 export type Handlers = Record<string, (m: MatchEvent) => void>;
 export type EngineEvent = SoundEvent | { kind: 'unknown'; t: number; nearest: Nearest };
+
+// One classified segment, as the classifier saw it. Reported before the event of that segment. Not part of the public API.
+export interface SegmentReport { t: number; durationMs: number; result: ClassifyResult }
 
 export interface EngineOptions {
   sounds: SoundModel;
@@ -21,6 +24,7 @@ export interface EngineOptions {
   modes?: Record<string, Handlers>;
   mode?: string;
   onEvent?: (e: EngineEvent) => void;
+  onSegment?: (r: SegmentReport) => void;   // every classified segment, also those that give no event (background)
   classifier?: Classifier;
 }
 
@@ -85,6 +89,7 @@ export function createEngine(o: EngineOptions): Engine {
   const sampleRate = o.sampleRate;
   const classifier = o.classifier ?? knnClassifier;
   const onEvent = o.onEvent;
+  const onSegment = o.onSegment;
   const segmenter = new Segmenter(sampleRate);
   const tracker = createTracker(sampleRate);
   const matcher = new Matcher(Object.keys(modes[modeName]), baselineHz);
@@ -109,6 +114,7 @@ export function createEngine(o: EngineOptions): Engine {
     for (const seg of segments) {
       if (overlaps(seg, ranges, now())) continue;
       const r = classifier.classify(o.sounds, seg);
+      onSegment?.({ t: seg.t, durationMs: seg.durationMs, result: r });
       if (r.kind === 'unknown') {
         onEvent?.({ kind: 'unknown', t: seg.t, nearest: r.nearest });
         continue;

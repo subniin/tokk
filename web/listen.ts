@@ -11,6 +11,8 @@ import { openMic } from './mic';
 import type { MicHandle } from './mic';
 import { msToSamples } from './protocol';
 import type { MainToWorker, MessagePortLike, WorkerToMain } from './protocol';
+import { mountOverlay } from './overlay/overlay';
+import type { OverlayHandle } from './overlay/overlay';
 import { createTokkWorker } from './worker-factory';
 import type { WorkerHandle } from './worker-factory';
 
@@ -21,7 +23,7 @@ export interface ListenOptions {
   on?: Handlers;
   modes?: Record<string, Handlers>;
   mode?: string;
-  debug?: boolean;                      // accepted and ignored until the overlay exists
+  debug?: boolean;                      // true mounts the debug overlay (a panel with the waveform and the last results)
   source?: string | MediaStream;        // a WAV URL, a MediaStream, or none for the microphone
 }
 
@@ -129,12 +131,35 @@ export async function listen(options: ListenOptions): Promise<Ears> {
   let worker: WorkerHandle | null = null;
   let pacer: ReturnType<typeof createPacer> | null = null;
   let stopping: Promise<void> | null = null;
+  let overlay: OverlayHandle | null = null;
+
+  // A failure inside an overlay call is logged and never stops the handlers.
+  const withOverlay = (call: (o: OverlayHandle) => void): void => {
+    if (!overlay) return;
+    try { call(overlay); } catch (e) { console.error('tokk: overlay error:', e); }
+  };
+
+  const tryMount = (sampleRate: number): OverlayHandle | null => {
+    try {
+      return mountOverlay({ sounds, sampleRate });
+    } catch (e) {
+      console.error('tokk: the debug overlay could not start:', e);
+      return null;
+    }
+  };
 
   // Every Worker message passes through here.
   const route = (msg: WorkerToMain): void => {
     if (closed) return;
     switch (msg.type) {
+      case 'segment':
+        withOverlay((o) => o.onEvent({ t: msg.t, durationMs: msg.durationMs, result: msg.result }));
+        return;
+      case 'envelope':
+        withOverlay((o) => o.onEnvelope(msg));
+        return;
       case 'match': {
+        withOverlay((o) => o.onMatch(msg.pattern, msg.event));
         const handler = handlerSets[currentMode]?.[msg.pattern];
         if (handler) {
           try { handler(msg.event); } catch (e) { rethrowLater(e); }
@@ -145,7 +170,7 @@ export async function listen(options: ListenOptions): Promise<Ears> {
         console.error(`tokk: ${msg.message}`);
         return;
       default:
-        return;   // `event` and `envelope` are used by the overlay (Task 15)
+        return;   // `event` messages are not used here: a `segment` message gives the overlay one row per segment
     }
   };
 
@@ -154,6 +179,8 @@ export async function listen(options: ListenOptions): Promise<Ears> {
   };
 
   const teardown = async (): Promise<void> => {
+    overlay?.destroy();
+    overlay = null;
     pacer?.stop();
     await mic?.close();
     worker?.dispose();
@@ -176,6 +203,7 @@ export async function listen(options: ListenOptions): Promise<Ears> {
 
     const sampleRate = wav ? wav.sampleRate : (mic as MicHandle).sampleRate;
     post({ type: 'init', sounds, sampleRate, patterns, mode: currentMode });
+    if (opts.debug === true) overlay = tryMount(sampleRate);
     if (mic) {
       post({ type: 'connect', port: mic.workerPort as unknown as MessagePortLike }, [mic.workerPort]);
     } else if (wav) {
@@ -209,12 +237,14 @@ export async function listen(options: ListenOptions): Promise<Ears> {
       paused = true;
       mic?.pause();
       pacer?.pause();
+      withOverlay((o) => o.setState('paused'));
     },
     resume(): void {
       if (closed || !paused) return;
       paused = false;
       mic?.resume();
       pacer?.start();
+      withOverlay((o) => o.setState('listening'));
     },
     stop(): Promise<void> {
       if (stopping === null) {

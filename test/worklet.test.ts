@@ -125,6 +125,11 @@ describe('worklet source', () => {
     expect(processor.process([[ramp(0)]], [[]])).toBe(true);
   });
 
+  it('defines the method as plain process(inputs), with no computed key', () => {
+    expect(WORKLET_SOURCE).toContain('process(inputs)');
+    expect(WORKLET_SOURCE).not.toMatch(/['"]proc['"]/);
+  });
+
   it('is usable as a classic script and holds no sample rate or chunk length', () => {
     expect(WORKLET_SOURCE).not.toMatch(/\bimport\b|\bexport\b/);
     expect(WORKLET_SOURCE).not.toMatch(/\b(960|441|480|20|48000|44100)\b/);

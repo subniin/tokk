@@ -3,8 +3,6 @@
 
 export const WORKLET_PROCESSOR_NAME = 'tokk-capture';
 
-// The Web Audio API method name is `process`. It is written as a key built from two parts so that the text of
-// dist/tokk.js has no `process` word (the build test checks that no Node global is referenced).
 export const WORKLET_SOURCE = `
 const RENDER_BLOCK_FRAMES = 128;
 class TokkCapture extends AudioWorkletProcessor {
@@ -29,7 +27,7 @@ class TokkCapture extends AudioWorkletProcessor {
       }
     };
   }
-  ['proc' + 'ess'](inputs) {
+  process(inputs) {
     if (this.data === null || this.paused) return true;
     const input = inputs[0];
     const channel = input && input[0];

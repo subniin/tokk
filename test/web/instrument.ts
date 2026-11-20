@@ -8,11 +8,12 @@ export interface Instrumentation {
   contexts: { sampleRate: number; state: string }[];
   tracks: { readyState: string }[];
   terminateCalls: number;
+  animationFrames: number;
 }
 
 // Runs inside the page before any page script.
 function installInstrumentation(options: InstrumentOptions): void {
-  const record = { contexts: [] as AudioContext[], streams: [] as MediaStream[], terminateCalls: 0 };
+  const record = { contexts: [] as AudioContext[], streams: [] as MediaStream[], terminateCalls: 0, animationFrames: 0 };
   (window as unknown as { __tokkInstr: typeof record }).__tokkInstr = record;
 
   const OriginalContext = window.AudioContext;
@@ -39,6 +40,15 @@ function installInstrumentation(options: InstrumentOptions): void {
     };
   }
 
+  if (options.countAnimationFrames) {
+    const originalFrame = window.requestAnimationFrame.bind(window);
+    window.requestAnimationFrame = (callback: FrameRequestCallback) => {
+      // Playwright's own waiting also calls requestAnimationFrame in the page, so only calls from the bundle count.
+      if (new Error().stack?.includes('/dist/tokk.js')) record.animationFrames++;
+      return originalFrame(callback);
+    };
+  }
+
   const originalTerminate = Worker.prototype.terminate;
   Worker.prototype.terminate = function terminate(this: Worker) {
     record.terminateCalls++;
@@ -48,6 +58,7 @@ function installInstrumentation(options: InstrumentOptions): void {
 
 export interface InstrumentOptions {
   suspendWithoutGesture?: boolean;
+  countAnimationFrames?: boolean;   // counts calls of requestAnimationFrame made by dist/tokk.js, then calls the original
 }
 
 export async function instrument(page: Page, options: InstrumentOptions = {}): Promise<void> {
@@ -56,11 +67,12 @@ export async function instrument(page: Page, options: InstrumentOptions = {}): P
 
 export async function readInstrumentation(page: Page): Promise<Instrumentation> {
   return page.evaluate(() => {
-    const r = (window as unknown as { __tokkInstr: { contexts: AudioContext[]; streams: MediaStream[]; terminateCalls: number } }).__tokkInstr;
+    const r = (window as unknown as { __tokkInstr: { contexts: AudioContext[]; streams: MediaStream[]; terminateCalls: number; animationFrames: number } }).__tokkInstr;
     return {
       contexts: r.contexts.map((c) => ({ sampleRate: c.sampleRate, state: c.state })),
       tracks: r.streams.flatMap((s) => s.getTracks().map((t) => ({ readyState: t.readyState }))),
       terminateCalls: r.terminateCalls,
+      animationFrames: r.animationFrames,
     };
   });
 }

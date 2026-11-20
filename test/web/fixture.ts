@@ -17,10 +17,11 @@ import type { SoundModel } from '../../core/types';
 import { readWavFile, writeWavFile } from '../../node/files';
 import { LEAD_MS, TRAIN_GAIN_DB, TRAIN_PER_CLASS, TRAIN_SPACING_MS, TRAIL_MS, makeSignal } from '../helpers/engine-fixture';
 import type { ImpactName } from '../helpers/engine-fixture';
-import { FIXTURE_LABELS_PATH, FIXTURE_MODEL_PATH, FIXTURE_WAV_PATH, GENERATED_DIR } from './paths';
+import { FIXTURE_LABELS_PATH, FIXTURE_MISMATCH_MODEL_PATH, FIXTURE_MODEL_PATH, FIXTURE_WAV_PATH, GENERATED_DIR } from './paths';
 
 // Test-only values.
 export const WEB_TEST_SAMPLE_RATE_HZ = 48000;
+export const WEB_TEST_MISMATCH_SAMPLE_RATE_HZ = 44100;   // second model, taught at a rate that differs from the WAV
 // The browser needs time to start capturing (context, stream, worklet module, Worker). The first part of the file
 // can be lost before the first chunk reaches the Worker. Measured loss: 0 to 10 ms (design.md "Measured values").
 // 500 ms keeps a margin of about 50 times that for a slower machine.
@@ -41,17 +42,17 @@ export interface FixtureInfo {
   durationMs: number;
 }
 
-function teachingSet(): Recording[] {
+function teachingSet(sampleRate: number): Recording[] {
   return WEB_TEST_LABELS.map((cls, ci) => {
     const hits = Array.from({ length: TRAIN_PER_CLASS }, (_, i) => ({ atMs: LEAD_MS + i * TRAIN_SPACING_MS, cls, gainDb: TRAIN_GAIN_DB }));
     const samples = makeSignal({
-      sampleRate: WEB_TEST_SAMPLE_RATE_HZ,
+      sampleRate,
       totalMs: LEAD_MS + TRAIN_PER_CLASS * TRAIN_SPACING_MS + TRAIL_MS,
       hits,
       seed: TEACH_SEED_BASE + ci * SEED_STEP,
       noiseRmsDb: SYNTH_FIXTURE_LEAD_NOISE_DBFS,
     });
-    return { label: cls, file: `${cls}-01.wav`, samples, sampleRate: WEB_TEST_SAMPLE_RATE_HZ };
+    return { label: cls, file: `${cls}-01.wav`, samples, sampleRate };
   });
 }
 
@@ -78,11 +79,13 @@ export function checkFixture(model: SoundModel, samples: Float32Array, sampleRat
 }
 
 export async function generateFixtures(): Promise<FixtureInfo> {
-  const { model } = teachFromRecordings(teachingSet());
+  const { model } = teachFromRecordings(teachingSet(WEB_TEST_SAMPLE_RATE_HZ));
+  const { model: mismatchModel } = teachFromRecordings(teachingSet(WEB_TEST_MISMATCH_SAMPLE_RATE_HZ));
   const { samples, durationMs } = testSignal();
   await mkdir(GENERATED_DIR, { recursive: true });
   await writeWavFile(FIXTURE_WAV_PATH, samples, WEB_TEST_SAMPLE_RATE_HZ);
   await writeFile(FIXTURE_MODEL_PATH, JSON.stringify(model));
+  await writeFile(FIXTURE_MISMATCH_MODEL_PATH, JSON.stringify(mismatchModel));
   const info: FixtureInfo = { labels: [...WEB_TEST_LABELS], sampleRate: WEB_TEST_SAMPLE_RATE_HZ, durationMs };
   await writeFile(FIXTURE_LABELS_PATH, JSON.stringify(info));
   const written = await readWavFile(FIXTURE_WAV_PATH);

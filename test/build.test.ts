@@ -7,6 +7,7 @@ import vm from 'node:vm';
 import { build as esbuild } from 'esbuild';
 import { WORKLET_PROCESSOR_NAME } from '../web/worklet-source';
 import { build, buildBundles, bundleWorkerSource, workerSourcePlugin } from '../scripts/build';
+import { findNodeGlobalUse } from './helpers/node-globals';
 
 const BUILD_TEST_TIMEOUT_MS = 120_000;
 const PACK_TEST_TIMEOUT_MS = 60_000;
@@ -59,14 +60,11 @@ describe('build output', () => {
     expect(existsSync(join(ROOT, 'dist', 'tokk.js.map'))).toBe(false);
   });
 
-  it('dist/tokk.js has no fs, path, zlib, process, node: or require', () => {
+  // Task 15: the check changed from the word `process` to real Node global use. It is stricter about code
+  // (`process.env.X` fails) and no longer fails on the Web Audio method name `process(inputs)`.
+  it('dist/tokk.js has no Node global use, no fs, path, zlib, node: or require', () => {
     const text = readFileSync(TOKK_JS, 'utf8');
-    expect(text).not.toMatch(/\bprocess\b/);
-    expect(text).not.toMatch(/\brequire\s*\(/);
-    expect(text).not.toMatch(/["']node:/);
-    const specifiers = [...text.matchAll(/(?:\bfrom\s*|\bimport\s*\(?\s*)["']([^"']+)["']/g)].map((m) => m[1]);
-    for (const spec of specifiers) expect(spec).not.toMatch(/^(fs|path|zlib)(\/|$)/);
-    expect(text).not.toMatch(/\b(?:fs|path|zlib)\b\s*["']\s*[;)]/);
+    expect(findNodeGlobalUse(text)).toEqual([]);
   });
 
   it('dist/tokk.js holds the Worker source and the worklet source', () => {

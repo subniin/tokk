@@ -3,7 +3,7 @@
 
 import { createEngine } from '../core/engine';
 import type { Engine, EngineEvent, Handlers } from '../core/engine';
-import type { MatchEvent, SoundModel } from '../core/types';
+import type { ClassifyResult, MatchEvent, SoundModel } from '../core/types';
 import { WEB_ENVELOPE_RESOLUTION_MS } from './constants';
 
 const MS_PER_SECOND = 1000;
@@ -29,6 +29,7 @@ export type MainToWorker =
 
 export type WorkerToMain =
   | { type: 'match'; pattern: string; event: MatchEvent }
+  | { type: 'segment'; t: number; durationMs: number; result: ClassifyResult }   // every classified segment, before its event
   | { type: 'event'; e: EngineEvent }
   | { type: 'envelope'; t0: number; min: Float32Array; max: Float32Array }
   | { type: 'error'; message: string };
@@ -70,6 +71,7 @@ function buildEngine(state: WorkerState, sounds: SoundModel): Engine {
     sampleRate: state.sampleRate,
     modes,
     mode: state.mode,
+    onSegment: (r) => { state.out.push({ type: 'segment', t: r.t, durationMs: r.durationMs, result: r.result }); },
     onEvent: (e) => { state.out.push({ type: 'event', e }); },
   });
 }

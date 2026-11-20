@@ -3,9 +3,15 @@
 <head>
   <meta charset="utf-8">
   <title>tokk listen() test page</title>
+  <style>
+    /* Page rules for the overlay style-isolation test (test/web/overlay.spec.ts). */
+    body { font-size: 27px; color: rgb(255, 0, 0); }
+    h1 { font-size: 41px; font-weight: 300; }
+  </style>
 </head>
 <body>
   <!-- Test page for test/web/listen.spec.ts. It uses only the built bundle /dist/tokk.js. -->
+  <h1 id="page-title">Overlay test page</h1>
   <button id="start" type="button">Start listening</button>
   <script type="module">
     import { listen, loadSounds } from '/dist/tokk.js';
@@ -24,7 +30,7 @@
       try {
         const sounds = await loadSounds(modelUrl);
         const on = Object.fromEntries(patterns.map((name) => [name, (m) => state.calls.push({ pattern: name, t: m.t })]));
-        state.ears = await listen({ sounds, on, ...(source === undefined ? {} : { source }) });
+        state.ears = await listen({ sounds, on, ...(params.has('debug') ? { debug: true } : {}), ...(source === undefined ? {} : { source }) });
         state.ready = true;
         return { ok: true };
       } catch (e) {
