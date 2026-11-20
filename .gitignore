@@ -5,3 +5,5 @@ test-results/
 playwright-report/
 test/web/generated/
 examples/hello/sounds/
+site/
+apps/*/dist/

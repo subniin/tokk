@@ -19,9 +19,10 @@
   <button id="start" type="button">Start listening</button>
   <p id="error" role="alert"></p>
   <ul id="results" aria-live="polite" aria-label="Recognised sounds and patterns"></ul>
+  <script type="importmap">{ "imports": { "tokk": "../../dist/tokk.js" } }</script>
   <script type="module">
     // tokk:start
-    import { listen, loadSounds } from '/dist/tokk.js';
+    import { listen, loadSounds } from 'tokk';
     const show = (m) => results.append(Object.assign(document.createElement('li'), { textContent: `${m.pattern} at ${m.t.toFixed(2)} s` }));
     const on = Object.fromEntries(['low', 'mid', 'high', 'ring', 'low _ mid'].map((pattern) => [pattern, show]));
     start.onclick = async () => {

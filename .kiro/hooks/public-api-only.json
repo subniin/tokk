@@ -3,7 +3,7 @@
   "hooks": [
     {
       "name": "public-api-only",
-      "description": "Fail when a file under apps/ imports from core/ instead of the public API.",
+      "description": "Fail when a file under apps/ imports from core/, web/, node/ or tools/ instead of the public API (tokk).",
       "trigger": "PostFileSave",
       "matcher": "(^|[\\\\/])apps[\\\\/]",
       "action": {

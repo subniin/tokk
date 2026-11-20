@@ -4,11 +4,17 @@ Tokk is a sound-event engine that lets an app react to short sounds like a clap,
 
 ## Example
 
-Ten lines of Tokk code listen to the microphone and write every recognised sound and pattern as text. The page is `examples/hello/index.html`.
+7 lines of Tokk code listen to the microphone and write every recognised sound and pattern as text. The page is `examples/hello/index.html`.
+
+The code imports `tokk` the way an app does. A browser needs an import map to find it, and the map is the one extra line. It is not counted:
+
+```html
+<script type="importmap">{ "imports": { "tokk": "https://cdn.jsdelivr.net/npm/tokk/+esm" } }</script>
+```
 
 ```js
 // tokk:start
-import { listen, loadSounds } from 'https://cdn.jsdelivr.net/npm/tokk/+esm';
+import { listen, loadSounds } from 'tokk';
 const show = (m) => results.append(Object.assign(document.createElement('li'), { textContent: `${m.pattern} at ${m.t.toFixed(2)} s` }));
 const on = Object.fromEntries(['low', 'mid', 'high', 'ring', 'low _ mid'].map((pattern) => [pattern, show]));
 start.onclick = async () => {
@@ -18,7 +24,7 @@ start.onclick = async () => {
 // tokk:end
 ```
 
-The CDN import works after publish. Inside this repository, run `npm run dev` and open `http://localhost:5173/examples/hello/index.html`, which imports the local build instead.
+The CDN map works after publish. The page in this repository maps `tokk` to the local build instead (`../../dist/tokk.js`). Run `npm run dev` and open `http://localhost:5173/examples/hello/index.html`. The example needs a browser with import maps.
 
 The model in `examples/hello/sounds.json` is synthetic: it was built from synthetic sounds at the sample rate of the test microphone, so your own sounds will not match it. Replace it by teaching real sounds with `teach.html` and picking `examples/hello` as the project folder.
 

@@ -74,6 +74,8 @@
         "test:quick": "vitest run --reporter dot",
         "test:web": "playwright test",
         "check:public-api": "tsx scripts/check-public-api.ts",
+        "build:site": "tsx scripts/build-site.ts",
+        "count:wiring": "tsx scripts/count-wiring.ts",
         "pbt:quick": "tsx scripts/pbt-quick.ts",
         "score": "tsx scripts/score.ts",
         "mcp": "tsx tools/mcp-ears/server.ts",

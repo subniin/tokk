@@ -2,7 +2,8 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "lib": ["ES2022", "DOM"],
-    "types": []
+    "types": [],
+    "paths": { "tokk": ["./web/index.ts"] }
   },
-  "include": ["web", "core"]
+  "include": ["web", "core", "apps/*/src/**/*.ts"]
 }

@@ -50,6 +50,14 @@ describe('package.json metadata (Task 19)', () => {
     expect(pkg.sideEffects).toBe(false);
   });
 
+  it('M3 (Task 21): the scripts build:site and count:wiring exist, run with tsx, and the package files list is unchanged', () => {
+    const scripts = pkg.scripts as Record<string, string>;
+    expect(scripts['build:site']).toBe('tsx scripts/build-site.ts');
+    expect(scripts['count:wiring']).toBe('tsx scripts/count-wiring.ts');
+    expect(pkg.files).toEqual(['dist', 'README.md', 'LICENSE']);
+    expect(pkg.dependencies).toBeUndefined();
+  });
+
   it('M2: removing or changing one field is reported', () => {
     const version = String(plugin.version);
     for (const field of ['description', 'keywords', 'repository', 'homepage', 'bugs', 'license', 'author', 'engines']) {

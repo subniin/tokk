@@ -3,6 +3,7 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { countWiring } from '../scripts/count-wiring';
 import { MODEL_VERSION } from '../core/constants';
 import { checkModel } from '../web/model';
 import { WEB_TEST_SAMPLE_RATE_HZ } from './web/fixture';
@@ -16,8 +17,9 @@ const SYNTH_MODEL_PATH = join(REPO_ROOT, 'fixtures', 'audio', 'synth', 'sounds.j
 const README_PATH = join(REPO_ROOT, 'README.md');
 const MARKER_START = '// tokk:start';
 const MARKER_END = '// tokk:end';
-const PAGE_IMPORT = '/dist/tokk.js';
-const CDN_IMPORT = 'https://cdn.jsdelivr.net/npm/tokk/+esm';
+// Task 21 (requirement 4.8): the page imports the bare specifier and resolves it with an import map.
+const PAGE_IMPORT = 'tokk';
+const IMPORT_MAP_TARGET = '../../dist/tokk.js';
 const FORBIDDEN_MODEL_KEYS = ['samples', 'wav', 'audio', 'pcm', 'waveform', 'data', 'buffer'];
 
 export type CodeResult = { ok: true; lines: string[] } | { ok: false; error: string };
@@ -38,6 +40,16 @@ export function extractTokkCode(page: string): CodeResult {
   return { ok: true, lines: all.slice(from + 1, to).filter((l) => l !== '') };
 }
 
+// The import map is a separate script before the module script, outside the markers (Task 21, requirement 4.2 and 4.3).
+function hasImportMap(text: string): boolean {
+  const m = /<script type="importmap">([\s\S]*?)<\/script>/.exec(text);
+  if (!m) return false;
+  try {
+    const imports = (JSON.parse(m[1]) as { imports?: Record<string, string> }).imports;
+    return imports?.[PAGE_IMPORT] === IMPORT_MAP_TARGET && m.index < text.indexOf('type="module"');
+  } catch { return false; }
+}
+
 export function checkTokkCode(page: string, maxLines: number): string[] {
   const r = extractTokkCode(page);
   if (!r.ok) return [r.error];
@@ -46,7 +58,8 @@ export function checkTokkCode(page: string, maxLines: number): string[] {
   const text = r.lines.join('\n');
   if (!text.includes('listen(')) problems.push('no listen( call');
   if (!text.includes('debug: true')) problems.push('no debug: true');
-  if (!r.lines.some((l) => l.startsWith('import ') && l.includes(`'${PAGE_IMPORT}'`))) problems.push(`no import from ${PAGE_IMPORT}`);
+  if (!r.lines.some((l) => l.startsWith('import ') && l.includes(`from '${PAGE_IMPORT}'`))) problems.push(`no import from '${PAGE_IMPORT}'`);
+  if (!hasImportMap(page)) problems.push('no import map for tokk');
   return problems;
 }
 
@@ -88,14 +101,11 @@ describe('hello page (Task 19)', () => {
     expect(checkTokkCode(page.replace('debug: true', 'debug: false'), HELLO_MAX_TOKK_LINES)).toContain('no debug: true');
   });
 
-  it('H4: the README example equals the page code except the import specifier', () => {
+  // Task 21 (requirement 4.8): the README block is now the same as the page block, line by line.
+  it('H4: the README example equals the page code line by line', () => {
     const fromPage = extractTokkCode(page);
     if (!fromPage.ok) throw new Error(fromPage.error);
-    const fromReadme = readmeCode(readFileSync(README_PATH, 'utf8'));
-    expect(fromReadme.length).toBe(fromPage.lines.length);
-    const differing = fromPage.lines.map((l, i) => [l, fromReadme[i]]).filter(([a, b]) => a !== b);
-    expect(differing).toEqual([[expect.stringContaining(PAGE_IMPORT), expect.stringContaining(CDN_IMPORT)]]);
-    expect(differing[0][0].replace(PAGE_IMPORT, CDN_IMPORT)).toBe(differing[0][1]);
+    expect(readmeCode(readFileSync(README_PATH, 'utf8'))).toEqual(fromPage.lines);
   });
 
   it('H5: button text, synthetic and teach.html in the page and in the README', () => {
@@ -136,11 +146,21 @@ describe('hello page (Task 19)', () => {
     expect(raw).not.toContain('RIFF');
   });
 
-  it('D1: the README states no number before minutes, seconds or lines outside code blocks', () => {
-    const NUMBER_BEFORE_UNIT = /\b\d+(?:[.,]\d+)?\s*(?:minutes?|seconds?|lines?)\b/i;
+  // Task 21 (requirement 4.8): exactly one "N lines" sentence is allowed, with N measured by countWiring on the example.
+  it('D1: the README states no number before minutes, seconds or lines outside code blocks, except the one measured count', () => {
+    const NUMBER_BEFORE_UNIT = /\b\d+(?:[.,]\d+)?\s*(?:minutes?|seconds?|lines?)\b/gi;
+    const rest = (prose: string, measured: number): string[] => {
+      const all = [...prose.matchAll(NUMBER_BEFORE_UNIT)].map((m) => m[0]);
+      const at = all.findIndex((x) => x.replace(/\s+/g, ' ') === `${measured} lines`);
+      return at < 0 ? all : all.filter((_, i) => i !== at);
+    };
+    const measured = countWiring(page).lines;
     const prose = proseOf(readFileSync(README_PATH, 'utf8'));
-    expect(prose).not.toMatch(NUMBER_BEFORE_UNIT);
-    expect('Teaching takes 3 minutes.').toMatch(NUMBER_BEFORE_UNIT);
-    expect('The code is 7 lines long.').toMatch(NUMBER_BEFORE_UNIT);
+    expect([...prose.matchAll(NUMBER_BEFORE_UNIT)].map((m) => m[0])).toEqual([`${measured} lines`]);
+    expect(rest(prose, measured)).toEqual([]);
+    expect(rest('Teaching takes 3 minutes.', measured)).not.toEqual([]);
+    expect(rest(`The code is ${measured + 1} lines long.`, measured)).not.toEqual([]);
+    expect(rest(`${measured} lines. And ${measured} lines again.`, measured)).not.toEqual([]);
+    expect(rest('It takes 4 seconds.', measured)).not.toEqual([]);
   });
 });

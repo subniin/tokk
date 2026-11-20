@@ -9,10 +9,13 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { build as esbuild } from 'esbuild';
 import { WORKLET_PROCESSOR_NAME } from '../web/worklet-source';
-import { build, buildBundles, bundleWorkerSource, workerSourcePlugin } from '../scripts/build';
+import { appBuildOptions, build, buildApps, buildBundles, bundleWorkerSource, findApps, watchApps, workerSourcePlugin } from '../scripts/build';
 import type { BuildOptions } from 'esbuild';
 import { TOOLS } from '../tools/mcp-ears/tools';
 import { findNodeGlobalUse } from './helpers/node-globals';
+import { makeFixtureApps, removeFixtureApps } from './helpers/fixture-apps';
+import { mkdirSync } from 'node:fs';
+import { vi } from 'vitest';
 
 const BUILD_TEST_TIMEOUT_MS = 120_000;
 const PACK_TEST_TIMEOUT_MS = 60_000;
@@ -312,4 +315,94 @@ describe('base TypeScript configuration', () => {
       removeProbe();
     }
   }, TSC_TEST_TIMEOUT_MS);
+});
+
+// Task 21: app bundles (tests B1 to B6). Every app is a fixture in a temporary folder, never under apps/.
+describe('app bundles (Task 21)', () => {
+  const APPS_BUILD_TIMEOUT_MS = 120_000;
+  const WATCH_REBUILD_TIMEOUT_MS = 20_000;
+  const WATCH_POLL_INTERVAL_MS = 100;
+  const FIXTURE_NAMES = ['alpha', 'beta-2'];
+  const dirs: string[] = [];
+  const fixture = (names = FIXTURE_NAMES): string => { const d = makeFixtureApps(names); dirs.push(d); return d; };
+  afterAll(() => { for (const d of dirs) removeFixtureApps(d); });
+
+  it('B1: buildApps writes a minified dist/app.js with the Worker source and no bare import, Node global or node: use', async () => {
+    const dir = fixture();
+    expect(await buildApps(dir)).toEqual(FIXTURE_NAMES);
+    for (const name of FIXTURE_NAMES) {
+      const text = readFileSync(join(dir, name, 'dist', 'app.js'), 'utf8');
+      expect(text).toContain('replaceSounds');
+      expect(text).toContain('createObjectURL');
+      expect(text).toContain('registerProcessor');
+      expect(text).not.toMatch(/from\s*["']tokk["']/);
+      expect(text).not.toMatch(/\bimport\s*["']tokk["']/);
+      expect(text).not.toMatch(/(?:from|import)\s*\(?\s*["'](?:node:|fs["'/]|path["'/])/);
+      expect(text).toContain('tokk import resolved');
+      expect(findNodeGlobalUse(text)).toEqual([]);
+    }
+  }, APPS_BUILD_TIMEOUT_MS);
+
+  it('B2: the app bundle is at most MINIFIED_MAX_SHARE_OF_UNMINIFIED of an unminified build', async () => {
+    const dir = fixture(['alpha']);
+    await buildApps(dir);
+    const plain = await esbuild({ ...appBuildOptions(join(dir, 'alpha'), { minify: false, outfile: join(dir, 'alpha', 'dist', 'plain.js') }), write: false, logLevel: 'silent' });
+    const small = readFileSync(join(dir, 'alpha', 'dist', 'app.js'), 'utf8').length;
+    expect(small).toBeLessThan(plain.outputFiles[0].text.length * MINIFIED_MAX_SHARE_OF_UNMINIFIED);
+  }, APPS_BUILD_TIMEOUT_MS);
+
+  it('B3: two builds of the fixture give byte-identical app.js, and a stale file in dist/ is removed', async () => {
+    const dir = fixture(['alpha']);
+    await buildApps(dir);
+    const first = readFileSync(join(dir, 'alpha', 'dist', 'app.js'));
+    writeFileSync(join(dir, 'alpha', 'dist', 'stale.txt'), 'x');
+    await buildApps(dir);
+    expect(readFileSync(join(dir, 'alpha', 'dist', 'app.js')).equals(first)).toBe(true);
+    expect(existsSync(join(dir, 'alpha', 'dist', 'stale.txt'))).toBe(false);
+  }, APPS_BUILD_TIMEOUT_MS);
+
+  it('B4: findApps skips a missing folder, files and a directory without main.ts (with a warning), rejects a bad name; a bad import names the app', async () => {
+    expect(findApps(join(tmpdir(), 'tokk-does-not-exist-21'))).toEqual([]);
+    const dir = fixture(['b', 'a']);
+    writeFileSync(join(dir, 'README.md'), '# apps\n');
+    mkdirSync(join(dir, 'empty-one'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      expect(findApps(dir)).toEqual(['a', 'b']);
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0][0])).toContain('empty-one');
+    } finally { warn.mockRestore(); }
+    const bad = fixture(['Bad_Name']);
+    expect(() => findApps(bad)).toThrow(/Bad_Name.*lowercase letters, digits and hyphens/);
+    const broken = fixture(['broken']);
+    writeFileSync(join(broken, 'broken', 'src', 'main.ts'), "import { nothing } from 'tokk/node';\nconsole.log(nothing);\n");
+    await expect(buildApps(broken)).rejects.toThrow(/broken/);
+  }, APPS_BUILD_TIMEOUT_MS);
+
+  it('B5: watchApps builds once unminified, rebuilds after an edit and disposes', async () => {
+    const dir = fixture(['alpha']);
+    const handle = await watchApps(dir);
+    try {
+      expect(handle.apps).toEqual(['alpha']);
+      const out = join(dir, 'alpha', 'dist', 'app.js');
+      expect(readFileSync(out, 'utf8')).toContain('tokk import resolved');
+      expect(readFileSync(out, 'utf8').split('\n').length).toBeGreaterThan(100);   // not minified
+      writeFileSync(join(dir, 'alpha', 'src', 'helper.ts'), "export const label = 'edited label';\n");
+      const deadline = Date.now() + WATCH_REBUILD_TIMEOUT_MS;
+      while (!readFileSync(out, 'utf8').includes('edited label') && Date.now() < deadline) {
+        await new Promise((r) => setTimeout(r, WATCH_POLL_INTERVAL_MS));
+      }
+      expect(readFileSync(out, 'utf8')).toContain('edited label');
+    } finally {
+      await handle.dispose();
+    }
+  }, APPS_BUILD_TIMEOUT_MS);
+
+  it('B6: .gitignore ignores site/ and apps/*/dist/ but not app sources or apps/README.md', () => {
+    const ignored = (p: string): boolean => spawnSync('git', ['check-ignore', '-q', p], { cwd: ROOT }).status === 0;
+    expect(ignored('site/index.html')).toBe(true);
+    expect(ignored('apps/anything/dist/app.js')).toBe(true);
+    expect(ignored('apps/anything/src/main.ts')).toBe(false);
+    expect(ignored('apps/README.md')).toBe(false);
+  });
 });
