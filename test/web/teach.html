@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>tokk teach dialog test page</title>
+  <style>
+    /* Page rules for the dialog style-isolation test (test/web/teach.spec.ts). */
+    body { font-size: 27px; color: rgb(255, 0, 0); }
+    h1 { font-size: 41px; font-weight: 300; }
+  </style>
+</head>
+<body>
+  <!-- Test page for test/web/teach.spec.ts. It uses only the built bundle /dist/tokk.js. -->
+  <h1 id="page-title">Teach dialog test page</h1>
+  <button id="start" type="button">Start listening</button>
+  <button id="teach" type="button">Teach a sound</button>
+  <script type="module">
+    import { listen, loadSounds } from '/dist/tokk.js';
+
+    const params = new URLSearchParams(location.search);
+    const modelUrl = params.get('model');
+
+    // The spec reads this object. It holds handler calls, the outcome of listen() and the outcome of teach().
+    const state = { calls: [], ready: false, rejection: null, ears: null, warnings: [], teach: null };
+    window.tokkTest = state;
+    const originalWarn = console.warn.bind(console);
+    console.warn = (...args) => { state.warnings.push(args.map(String).join(' ')); originalWarn(...args); };
+
+    // Starts listen(). `override` replaces URL options (source, patterns, model).
+    async function start(override = {}) {
+      const get = (name) => override[name] ?? params.get(name);
+      try {
+        const sounds = await loadSounds(get('model') ?? modelUrl);
+        const patterns = (get('patterns') ?? '').split(',').filter((p) => p !== '');
+        const on = Object.fromEntries(patterns.map((name) => [name, (m) => state.calls.push({ pattern: name, t: m.t })]));
+        const options = { sounds, on };
+        if (get('source')) options.source = get('source');
+        if (get('storageKey')) options.storageKey = get('storageKey');
+        if (params.has('debug')) options.debug = true;
+        state.ears = await listen(options);
+        state.ready = true;
+        return { ok: true };
+      } catch (e) {
+        state.rejection = e instanceof Error ? e.message : String(e);
+        return { ok: false, message: state.rejection };
+      }
+    }
+    state.start = start;
+
+    // Calls ears.teach and records how the promise ends. It does not wait for the dialog.
+    function teachStart(label, options = { ui: true }) {
+      const outcome = { settled: false, ok: null, name: null, message: null, report: null };
+      state.teach = outcome;
+      state.ears.teach(label, options).then(
+        (report) => { Object.assign(outcome, { settled: true, ok: true, report }); },
+        (e) => { Object.assign(outcome, { settled: true, ok: false, name: e.name, message: e.message }); },
+      );
+    }
+    state.teachStart = teachStart;
+
+    // Calls ears.teach and returns how the promise ended (for argument errors, which end at once).
+    state.teachOutcome = async (label, options) => {
+      try {
+        return { ok: true, report: await state.ears.teach(label, options) };
+      } catch (e) {
+        return { ok: false, name: e.name, message: e.message };
+      }
+    };
+
+    document.getElementById('start').addEventListener('click', () => { void start(); });
+    document.getElementById('teach').addEventListener('click', () => { teachStart(params.get('label') ?? 'tap', { ui: true }); });
+  </script>
+</body>
+</html>

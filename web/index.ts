@@ -6,4 +6,5 @@ export { readWav, writeWav } from '../core/index';
 export type { Segment, SoundEvent, SoundModel, Nearest, ClassifyResult, Classifier, MatchEvent } from '../core/index';
 export { loadSounds } from './load-sounds';
 export { listen } from './listen';
-export type { Ears, ListenOptions } from './listen';
+export type { Ears, ListenOptions, TeachOptions } from './listen';
+export type { TeachReport } from '../core/teach';

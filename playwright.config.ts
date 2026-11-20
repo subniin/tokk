@@ -1,6 +1,6 @@
 import { defineConfig } from '@playwright/test';
 import { DEV_SERVER_HOST, DEV_SERVER_PORT } from './scripts/build';
-import { FIXTURE_WAV_PATH } from './test/web/paths';
+import { FIXTURE_WAV_PATH, fakeMicArgs } from './test/web/paths';
 
 // Chrome treats a space in this argument as a separator, and the repository path has none.
 if (/\s/.test(FIXTURE_WAV_PATH)) {
@@ -33,12 +33,7 @@ export default defineConfig({
       use: {
         channel: 'chrome',
         launchOptions: {
-          args: [
-            '--use-fake-ui-for-media-stream',
-            '--use-fake-device-for-media-stream',
-            `--use-file-for-fake-audio-capture=${FIXTURE_WAV_PATH}%noloop`,
-            '--autoplay-policy=user-gesture-required',
-          ],
+          args: fakeMicArgs(FIXTURE_WAV_PATH),
         },
       },
     },

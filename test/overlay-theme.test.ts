@@ -34,6 +34,10 @@ const GRAPHIC_PAIRS: [string, string, string][] = [
   ['background mark on canvas', C.backgroundMark, C.canvasBackground],
   ['waveform on canvas', C.waveform, C.canvasBackground],
   ['baseline on canvas', C.baseline, C.canvasBackground],
+  // Added by Task 16: the teach dialog draws its progress bar and its borders on the panel colour.
+  ['waveform on panel (teach progress bar)', C.waveform, C.panelBackground],
+  ['background mark on panel (teach dialog border)', C.backgroundMark, C.panelBackground],
+  ['text on header (teach buttons)', C.text, C.headerBackground],
   ['focus outline on header', C.focusOutline, C.headerBackground],
   ['focus outline on panel', C.focusOutline, C.panelBackground],
   ...LABEL_PALETTE.map((c): [string, string, string] => [`label colour ${c} on canvas`, c, C.canvasBackground]),

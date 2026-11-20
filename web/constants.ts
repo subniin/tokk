@@ -19,3 +19,20 @@ export const WEB_OVERLAY_ROWS_MAX_HEIGHT_PX = 168;        // the row list scroll
 export const WEB_OVERLAY_FONT_SIZE_PX = 12;
 export const WEB_OVERLAY_MARK_MIN_WIDTH_PX = 2;           // a mark is never narrower than this
 export const WEB_OVERLAY_LOW_RATE_HZ = 16000;                 // input rate at which the high-frequency features are empty
+
+// Teach dialog (Task 16).
+export const WEB_TEACH_THUMBNAIL_BINS = 48;                    // a count of bins per segment thumbnail
+export const WEB_TEACH_HUM_RECORD_MS = 2000;                   // shortest hum recording
+export const WEB_TEACH_BACKGROUND_RECORD_MS = 10000;           // shortest background recording
+export const WEB_TEACH_MAX_RECORDING_MS = 120000;              // the recorder stops collecting here
+export const WEB_TEACH_PROGRESS_REDUCED_MOTION_MS = 1000;      // longest time between two progress updates with reduced motion
+export const WEB_TEACH_THUMBNAIL_WIDTH_PX = 120;
+export const WEB_TEACH_THUMBNAIL_HEIGHT_PX = 32;
+export const WEB_TEACH_FILE_NAME = 'teach.wav';                // file part of the ids of in-app examples
+export const WEB_TEACH_Z_INDEX = 2147483647;                   // largest 32-bit signed integer, no unit
+export const WEB_TEACH_FONT_SIZE_PX = 16;
+export const WEB_TEACH_WIDTH_PX = 480;
+export const WEB_TEACH_TIME_DECIMALS = 2;                      // decimals of a time in s
+export const WEB_TEACH_FOCUS_OUTLINE_PX = 2;
+export const WEB_STORAGE_KEY_DEFAULT = 'tokk:sounds';
+export const WEB_STORAGE_VERSION = 1;                          // version of the stored entry, no unit
