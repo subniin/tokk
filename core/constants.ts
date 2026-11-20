@@ -63,6 +63,7 @@ export const STD_FLOOR_ABSOLUTE = 0.01;
 export const BACKGROUND = 'background';
 
 // Teaching
+export const HUM_LABEL = 'hum';   // reserved label name: sets the pitch baseline, has no examples
 export const BACKGROUND_WINDOW_MS = 300;
 export const BACKGROUND_WINDOW_OVERLAP_PERCENT = 50;
 export const BACKGROUND_MAX_EXAMPLES = 200;
