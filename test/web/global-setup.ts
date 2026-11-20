@@ -1,0 +1,7 @@
+import { generateFixtures } from './fixture';
+
+// Runs once before the browser tests. It writes the fixtures into the ignored folder and fails the run if the
+// Node engine does not recognise them.
+export default async function globalSetup(): Promise<void> {
+  await generateFixtures();
+}

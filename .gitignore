@@ -3,3 +3,4 @@ dist
 docs/_planning/
 test-results/
 playwright-report/
+test/web/generated/

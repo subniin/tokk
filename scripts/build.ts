@@ -10,8 +10,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build as esbuild, context } from 'esbuild';
 import type { BuildOptions, Plugin } from 'esbuild';
 
-const DEV_SERVER_PORT = 5173;
-const DEV_SERVER_HOST = 'localhost';
+export const DEV_SERVER_PORT = 5173;
+export const DEV_SERVER_HOST = 'localhost';
 const WORKER_SOURCE_MODULE = 'tokk:worker-source';
 const WORKER_SOURCE_NAMESPACE = 'tokk-worker-source';
 

@@ -5,12 +5,14 @@ import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import vm from 'node:vm';
 import { build as esbuild } from 'esbuild';
+import { WORKLET_PROCESSOR_NAME } from '../web/worklet-source';
 import { build, buildBundles, bundleWorkerSource, workerSourcePlugin } from '../scripts/build';
 
 const BUILD_TEST_TIMEOUT_MS = 120_000;
 const PACK_TEST_TIMEOUT_MS = 60_000;
 const TSC_TEST_TIMEOUT_MS = 120_000;
 const NODE_CHILD_TIMEOUT_MS = 30_000;
+const UNSUPPORTED_RATE_HZ = 8000;
 
 const ROOT = resolve('.');
 const TOKK_JS = join(ROOT, 'dist', 'tokk.js');
@@ -22,8 +24,7 @@ const PROBE_FILE = join(ROOT, 'core', `__dom-probe-${process.pid}.ts`);
 const NODE_EXPORT_NAMES = [
   'ExpectEventsError', 'TooFewExamplesError', 'expectEvents', 'readWavFile', 'teachFromDir', 'writeWavFile',
 ];
-// Task 14 adds `listen` here and to web/index.ts.
-const TOKK_EXPORT_NAMES = ['createEngine', 'knnClassifier', 'loadSounds', 'readWav', 'runSamples', 'writeWav'];
+const TOKK_EXPORT_NAMES = ['createEngine', 'knnClassifier', 'listen', 'loadSounds', 'readWav', 'runSamples', 'writeWav'];
 
 function removeProbe(): void {
   rmSync(PROBE_FILE, { force: true });
@@ -66,6 +67,14 @@ describe('build output', () => {
     const specifiers = [...text.matchAll(/(?:\bfrom\s*|\bimport\s*\(?\s*)["']([^"']+)["']/g)].map((m) => m[1]);
     for (const spec of specifiers) expect(spec).not.toMatch(/^(fs|path|zlib)(\/|$)/);
     expect(text).not.toMatch(/\b(?:fs|path|zlib)\b\s*["']\s*[;)]/);
+  });
+
+  it('dist/tokk.js holds the Worker source and the worklet source', () => {
+    const text = readFileSync(TOKK_JS, 'utf8');
+    expect(text).toContain('replaceSounds');   // a name only the Worker entry bundle uses
+    expect(text).toContain('createObjectURL');
+    expect(text).toContain('registerProcessor');
+    expect(text).toContain(WORKLET_PROCESSOR_NAME);
   });
 
   it('dist/tokk.js imports in Node with no DOM and exports the expected names', () => {
@@ -114,7 +123,7 @@ describe('Worker source', () => {
     return { scope, listeners, posted };
   }
 
-  it('is an IIFE with no import or export, and answers ping with pong', async () => {
+  it('is an IIFE with no import or export, answers a bad init with an error and attaches a handler to a connected port', async () => {
     const source = await bundleWorkerSource();
     expect(source).not.toMatch(/^\s*import\b/m);
     expect(source).not.toMatch(/^\s*export\b/m);
@@ -125,15 +134,25 @@ describe('Worker source', () => {
     vm.runInContext(source, context);
     expect(listeners.length).toBe(1);
 
-    listeners[0]({ data: { type: 'ping' } });
-    expect(posted).toEqual([{ type: 'pong' }]);
+    const badInit = { type: 'init', sounds: {}, sampleRate: UNSUPPORTED_RATE_HZ, patterns: { default: [] }, mode: 'default' };
+    listeners[0]({ data: badInit });
+    expect(posted.length).toBe(1);
+    expect(posted[0]).toMatchObject({ type: 'error' });
+    expect((posted[0] as { message: string }).message).toMatch(/sampleRate/);
 
     for (const data of [{ type: 'other' }, null, undefined, 'ping', 42, {}]) {
       expect(() => listeners[0]({ data })).not.toThrow();
     }
-    expect(posted).toEqual([{ type: 'pong' }]);
-  });
+    expect(posted.every((m) => (m as { type: string }).type === 'error')).toBe(true);
 
+    const port: { onmessage: ((event: { data: unknown }) => void) | null } = { onmessage: null };
+    listeners[0]({ data: { type: 'connect', port } });
+    expect(typeof port.onmessage).toBe('function');
+    const before = posted.length;
+    port.onmessage?.({ data: badInit });
+    expect(posted.length).toBe(before + 1);
+    expect(posted[before]).toMatchObject({ type: 'error' });
+  });
   it('is put into a factory bundle by the plugin, and the factory builds a Blob URL Worker', async () => {
     const result = await esbuild({
       entryPoints: [join(ROOT, 'web', 'worker-factory.ts')],
@@ -142,7 +161,7 @@ describe('Worker source', () => {
     });
     const code = result.outputFiles[0].text;
     expect(code).toContain('createObjectURL');
-    expect(code).toContain('pong');
+    expect(code).toContain('replaceSounds');
 
     // Nothing touches Blob, URL or Worker at import time: the context has none of them yet.
     const context: Record<string, unknown> = {};

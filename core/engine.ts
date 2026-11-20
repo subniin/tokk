@@ -40,7 +40,7 @@ function createTracker(sampleRate: number): ContinuousTracker {
   return new PitchTracker(sampleRate);
 }
 
-function checkSampleRate(sampleRate: number): void {
+export function checkSampleRate(sampleRate: number): void {
   if (!(Number.isFinite(sampleRate) && sampleRate >= SAMPLE_RATE_MIN_HZ && sampleRate <= SAMPLE_RATE_MAX_HZ)) {
     throw new RangeError(
       `sampleRate must be between ${SAMPLE_RATE_MIN_HZ} and ${SAMPLE_RATE_MAX_HZ} Hz, got ${sampleRate}.`,

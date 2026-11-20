@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>tokk listen() test page</title>
+</head>
+<body>
+  <!-- Test page for test/web/listen.spec.ts. It uses only the built bundle /dist/tokk.js. -->
+  <button id="start" type="button">Start listening</button>
+  <script type="module">
+    import { listen, loadSounds } from '/dist/tokk.js';
+
+    const params = new URLSearchParams(location.search);
+    const source = params.get('source') ?? undefined;
+    const modelUrl = params.get('model');
+    const patterns = (params.get('patterns') ?? 'low,mid,high,ring').split(',');
+
+    // The spec reads this object. It holds handler calls and the outcome of listen(), nothing else.
+    const state = { calls: [], ready: false, rejection: null, ears: null };
+    window.tokkTest = state;
+
+    // Starts listen(). Called from the click handler (a user gesture) or from the spec without a click.
+    async function start() {
+      try {
+        const sounds = await loadSounds(modelUrl);
+        const on = Object.fromEntries(patterns.map((name) => [name, (m) => state.calls.push({ pattern: name, t: m.t })]));
+        state.ears = await listen({ sounds, on, ...(source === undefined ? {} : { source }) });
+        state.ready = true;
+        return { ok: true };
+      } catch (e) {
+        state.rejection = e instanceof Error ? e.message : String(e);
+        return { ok: false, message: state.rejection };
+      }
+    }
+    state.start = start;
+    // utostart calls listen() when the page loads, with no click, so there is no user gesture.
+    if (params.has('autostart')) void start();
+    document.getElementById('start').addEventListener('click', () => { void start(); });
+  </script>
+</body>
+</html>

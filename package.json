@@ -29,6 +29,7 @@
         "dev": "tsx scripts/build.ts --dev",
         "test": "vitest run",
         "test:quick": "vitest run --reporter dot",
+        "test:web": "playwright test",
         "check:public-api": "tsx scripts/check-public-api.ts",
         "pbt:quick": "tsx scripts/pbt-quick.ts",
         "score": "tsx scripts/score.ts",
@@ -44,6 +45,7 @@
     "devDependencies": {
         "@fast-check/vitest": "^0.5.0",
         "@modelcontextprotocol/sdk": "1.32.2",
+        "@playwright/test": "1.65.0",
         "@types/node": "^26.6.6",
         "esbuild": "0.28.2",
         "fast-check": "^4.10.3",

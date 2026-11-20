@@ -1,20 +1,22 @@
-// Minimal Worker entry (Task 13). It answers a ping with a pong.
-// Task 14 replaces this with the real protocol and removes the ping.
+// Worker entry. It holds no logic of its own: every message goes through handleWorkerMessage.
+
+import { createWorkerState, handleWorkerMessage, transferListOf } from './protocol';
+import type { MessagePortLike } from './protocol';
 
 interface WorkerScope {
   addEventListener(type: 'message', listener: (event: { data: unknown }) => void): void;
-  postMessage(message: unknown): void;
-}
-
-export function answer(message: unknown): { type: 'pong' } | null {
-  if (typeof message === 'object' && message !== null && (message as { type?: unknown }).type === 'ping') {
-    return { type: 'pong' };
-  }
-  return null;
+  postMessage(message: unknown, transfer?: unknown[]): void;
 }
 
 const scope = self as unknown as WorkerScope;
-scope.addEventListener('message', (event) => {
-  const reply = answer(event.data);
-  if (reply !== null) scope.postMessage(reply);
-});
+const state = createWorkerState();
+
+function onMessage(event: { data: unknown }): void {
+  const data = event.data as { type?: unknown; port?: MessagePortLike } | null;
+  if (typeof data === 'object' && data !== null && data.type === 'connect' && data.port) {
+    data.port.onmessage = onMessage;
+  }
+  for (const out of handleWorkerMessage(state, event.data)) scope.postMessage(out, transferListOf(out));
+}
+
+scope.addEventListener('message', onMessage);

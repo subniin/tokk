@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import * as core from '../core/index';
 import { MODEL_VERSION } from '../core/constants';
-import * as web from '../web/index';
-import { loadSounds } from '../web/index';
+import { loadSounds } from '../web/load-sounds';
 
 const MODEL_URL = 'https://example.test/sounds.json';
 const HTTP_NOT_FOUND = 404;
@@ -102,8 +102,13 @@ describe('loadSounds', () => {
   });
 });
 
+// Task 14: web/index.ts now exports listen, which pulls DOM types into the base tsc, so this test reads the
+// file as text. The names of dist/tokk.js are checked in test/build.test.ts.
 describe('web/index.ts names', () => {
-  it('equal the core names plus loadSounds (listen arrives with Task 14)', () => {
-    expect(Object.keys(web).sort()).toEqual([...Object.keys(core), 'loadSounds'].sort());
+  it('lists the core names plus loadSounds and listen as runtime exports', () => {
+    const text = readFileSync(new URL('../web/index.ts', import.meta.url), 'utf8');
+    const names = [...text.matchAll(/^export\s*\{([^}]*)\}\s*from/gm)]
+      .flatMap((m) => m[1].split(',').map((s) => s.trim()).filter((s) => s !== ''));
+    expect(names.sort()).toEqual([...Object.keys(core), 'loadSounds', 'listen'].sort());
   });
 });
