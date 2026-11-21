@@ -9,7 +9,7 @@ This section says what works and what has not been checked.
 What works in this repository:
 
 - The core engine, the browser layer, the Node tools and the MCP server run from source. `npm test` runs the unit and property tests.
-- Three apps (Hands-Free, Knock Once for Yes, Shoo!) and a case (a reveal.js slide deck) use Tokk through the public API only.
+- Four apps (Hands-Free, Knock Once for Yes, Shoo!, Click Talk) and a case (a reveal.js slide deck) use Tokk through the public API only.
 - `teach.html` records a sound 10 times and writes WAV files and a `sounds.json` of feature vectors.
 
 What has not been checked:
@@ -114,6 +114,7 @@ Demo video: coming with the submission.
 | [Hands-Free](apps/hands-free/) (browse a page with mouth sounds) | [png](docs/images/hands-free.png) | tongue click, hum, `background` | 17 | 1 h 24 min | about 135 |
 | [Knock Once for Yes](apps/knock-once/) (answer a ghost by knocking) | [png](docs/images/knock-once.png) | knock | 19 | 1 h 57 min | about 84 |
 | [Shoo!](apps/shoo/) (a sound defense game: each monster runs from one sound) | [png](docs/images/shoo.png) | click, clap, knock, pop, `background` (synthetic sounds for the Node tests; the player teaches real ones on the first run) | 25 | 2 h 10 min | about 63.9 |
+| [Click Talk](apps/click-talk/) (a communication board: a tongue click moves, a lip pop chooses, the laptop speaks) | [png](docs/images/click-talk.png) | click, pop, `background` (synthetic sounds for the Node tests; the caregiver teaches real ones on the first run) | 27 | Measured after build | Measured after build |
 | [Slide deck](cases/slides/) (reveal.js, clap twice for the next slide) | [png](docs/images/slides.png) | clap (synthetic claps for the Node tests; the user teaches real claps on the first run) | 17 | 1 h 50 min | about 42.7 |
 
 Conditions, from [docs/integration.md](docs/integration.md):
@@ -129,6 +130,7 @@ Conditions, from [docs/integration.md](docs/integration.md):
 |---|---|---|
 | `apps/hands-free` | 17 | `npm run count:wiring`, same as docs/integration.md |
 | `apps/knock-once` | 19 | `npm run count:wiring`, same as docs/integration.md |
+| `apps/click-talk` | 27 | `npm run count:wiring`, same as docs/integration.md |
 | `apps/shoo` | 25 | `npm run count:wiring`, same as docs/integration.md |
 | `cases/slides` | 17 | `npm run count:wiring`. The agent wrote 12 non-blank lines, the caption added the rest |
 | `examples/hello` | 7 | `npm run count:wiring` |
@@ -171,7 +173,7 @@ core/             # pure TypeScript: segmenter, features, classifier, grammar, e
 web/              # browser: microphone, AudioWorklet, Worker, listen(), teach dialog, overlay
 node/             # Node: teachFromDir, expectEvents, scoring, WAV files
 tools/mcp-ears/   # MCP server with the tools teach, listen, score, spectrogram
-apps/             # Hands-Free, Knock Once for Yes and Shoo!, one folder per app
+apps/             # Hands-Free, Knock Once for Yes, Shoo! and Click Talk, one folder per app
 cases/            # the slide deck case (reveal.js with sound control)
 examples/         # the hello example and its synthetic model
 .kiro/            # specs, steering, hooks, agents, MCP settings

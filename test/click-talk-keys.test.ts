@@ -23,14 +23,12 @@ describe('two-sound mode', () => {
 });
 
 describe('one-sound mode', () => {
-  it('Enter is click', () => {
+  it('Enter and Space are click', () => {
+    expect(actionForKey(key(' '), ONE)).toEqual(click);
     expect(actionForKey(key('Enter'), ONE)).toEqual(click);
     expect(actionForKey(key('Enter'), { mode: 'one', level: 'phrases' })).toEqual(click);
   });
 
-  it('Space does nothing (the frame moves by itself)', () => {
-    expect(actionForKey(key(' '), ONE)).toBeNull();
-  });
 });
 
 describe('help', () => {

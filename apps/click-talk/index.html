@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Click Talk</title>
+</head>
+<body>
+<div class="app" id="app" data-screen="welcome">
+  <header class="top" id="top" hidden>
+    <div class="where"><span>Click Talk</span><span class="cat" id="crumb" hidden></span></div>
+    <div class="status">
+      <span class="live" id="live" data-state="on"><i aria-hidden="true"></i><span id="live-text">Listening</span></span>
+      <button class="settings-btn" id="settings-open" type="button">Settings</button>
+    </div>
+  </header>
+
+  <main id="main">
+    <section class="screen" id="welcome" aria-label="Welcome">
+      <div class="page split">
+        <div>
+          <h1 id="welcome-title"></h1>
+          <p class="lead" id="welcome-lead"></p>
+          <p id="welcome-setup"></p>
+          <p class="fine" id="welcome-privacy"></p>
+          <p class="actions"><button class="primary" id="welcome-start" type="button"></button></p>
+        </div>
+        <div class="demo" aria-hidden="true">
+          <div class="grid">
+            <div class="tile needs"><strong>Needs</strong></div>
+            <div class="tile body"><strong>Body</strong></div>
+            <div class="tile people"><strong>People</strong></div>
+            <div class="tile talk"><strong>Talk</strong></div>
+          </div>
+          <div class="steps">
+            <div><b>click</b>moves the frame</div>
+            <div><b>pop</b>chooses</div>
+            <div><b>The laptop</b>says it</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="mode" aria-label="Mode">
+      <div class="page centered">
+        <h1 id="mode-question"></h1>
+        <div class="choices">
+          <button class="choice" id="mode-two" type="button" data-mode="two"><strong><span id="mode-two-title"></span> <span class="rec">Recommended</span></strong><span id="mode-two-body"></span><span class="chips"><b>click</b><b>pop</b></span></button>
+          <button class="choice" id="mode-one" type="button" data-mode="one"><strong id="mode-one-title"></strong><span id="mode-one-body"></span><span class="chips"><b>click</b></span></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="screen" id="board" aria-label="Board" data-level="categories" data-category="needs" data-index="0">
+      <div class="grid cats" id="g-cats"></div>
+      <div class="phr-wrap" id="g-phr" hidden></div>
+    </section>
+
+    <section class="screen" id="settings" aria-label="Settings"></section>
+  </main>
+
+  <footer class="sounds" id="sounds" data-heard="0" hidden></footer>
+
+  <div class="spoken" id="spoken" role="status" aria-live="assertive" hidden>
+    <div class="say" id="say">
+      <p id="say-text"></p>
+      <p class="note" id="say-note" hidden></p>
+      <div class="meta"><span>Speaking. Listening is paused.</span><span class="timer" aria-hidden="true"><i id="say-bar"></i></span></div>
+    </div>
+  </div>
+
+  <section id="help" role="alert" hidden>
+    <div class="box"><h1>I need help now.</h1><p>The alarm is sounding.</p><span class="stop">Press any key or click to stop the alarm.</span></div>
+  </section>
+
+  <div class="overlay" id="mic" hidden>
+    <div class="dialog" role="alertdialog" aria-labelledby="mic-title" aria-describedby="mic-body">
+      <h2 id="mic-title"></h2>
+      <p id="mic-body"></p>
+      <div class="row"><button class="primary" id="mic-retry" type="button"></button><button class="secondary" id="mic-keys" type="button">Use keys</button></div>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="./dist/app.js"></script>
+</body>
+</html>

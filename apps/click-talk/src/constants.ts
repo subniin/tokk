@@ -26,3 +26,26 @@ export const BURST_TOLERANCE_MS = 1e-6;    // rounding allowance for t = samples
 export const BACKGROUND_TEACH_MS = 30_000;               // the room sound of the first run
 export const BACKGROUND_TEACH_TEST_MS = 10_000;          // the shortest length teach() allows; used with a test parameter only
 export const SPEAK_SHOW_MS = 3000;                       // the chosen phrase stays on screen this long
+
+// Run B (the screen, speech, alarm and wiring).
+export const BURST_TIMER_MARGIN_MS = 50;          // the two-pop timer runs this much longer than the burst gap
+export const TEACH_EXAMPLES = 10;                 // sounds taught per label on the first run
+export const HEARD_SHOW_MS = 700;                 // the "heard" badge of the sound bar stays this long
+export const VOICES_WAIT_MS = 1500;               // Chrome loads voices late: wait this long for voiceschanged
+export const SPEAK_MAX_MS = 30_000;               // a speech that never reports its end is treated as ended
+export const HELP_ARM_MS = 300;                   // a key or click right after help starts does not stop it
+
+// The alarm: two alternating tones, no audio file.
+export const ALARM_HIGH_HZ = 880;
+export const ALARM_LOW_HZ = 660;
+export const ALARM_BEEP_MS = 320;                 // one tone
+export const ALARM_PERIOD_MS = 700;               // start to start of two tones
+export const ALARM_LEVEL_DB = -6;
+export const ALARM_FADE_MS = 15;
+export const ALARM_TEST_MS = 2000;                // "Test the alarm" sounds this long
+export const DB_AMPLITUDE_DIVISOR = 20;
+
+// The caregiver screen.
+export const SCAN_STEP_MS = 100;                  // the scan speed slider moves in steps of this
+export const RATE_STEP_FACTOR = 0.1;
+export const PREVIEW_PHRASE_COUNT = 3;            // phrases named under a category title

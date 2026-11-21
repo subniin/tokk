@@ -9,16 +9,14 @@ export interface KeyState { mode: Mode; level: Level }
 
 const MODIFIER_KEYS: readonly string[] = ['Shift', 'Control', 'Alt', 'Meta', 'AltGraph', 'CapsLock'];
 
-// Two sounds: Space = click, Enter = pop. One sound: Enter = click. In help any key stops the alarm.
+// Space is click in both modes (switch devices send Space). Enter is pop in two-sound mode and click in one-sound mode.
+// In help any key stops the alarm.
 // Every other key stays the browser's.
 export function actionForKey(k: KeyInput, state: KeyState): KeyAction | null {
   if (state.level === 'help') return MODIFIER_KEYS.includes(k.key) ? null : { type: 'stopHelp' };
   if (k.ctrl || k.alt || k.meta) return null;
   if (k.targetKind === 'text') return null;
-  if (state.mode === 'two') {
-    if (k.key === ' ') return { type: 'sound', sound: 'click' };
-    if (k.key === 'Enter') return { type: 'sound', sound: 'pop' };
-    return null;
-  }
-  return k.key === 'Enter' ? { type: 'sound', sound: 'click' } : null;
+  if (k.key === ' ') return { type: 'sound', sound: 'click' };
+  if (k.key === 'Enter') return { type: 'sound', sound: state.mode === 'two' ? 'pop' : 'click' };
+  return null;
 }

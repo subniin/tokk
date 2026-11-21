@@ -22,3 +22,10 @@ export const TEACH_LINE = {
 
 // The `recordBackground` text: 30 seconds of the room.
 export const BACKGROUND_LINE = 'Last, 30 seconds of the room: talk for a while, then type for a while. Click Talk learns what to ignore.';
+
+// The titles of the three teach dialogs (the dialog is the library's; the title is the app's).
+export const TEACH_TITLE = {
+  click: 'Teach the tongue click',
+  pop: 'Teach the lip pop',
+  background: 'The sound of the room',
+} as const;

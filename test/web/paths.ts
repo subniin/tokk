@@ -65,3 +65,11 @@ export const FIXTURE_SHOO_PLAY_WAV_PATH = resolve(GENERATED_DIR, 'shoo-play.wav'
 export const FIXTURE_SHOO_TIMES_PATH = resolve(GENERATED_DIR, 'shoo-times.json');
 export const FIXTURE_SHOO_STORED_PATH = resolve(GENERATED_DIR, 'shoo-stored.json');   // the localStorage text of a returning player
 export const SHOO_PAGE_URL = '/apps/shoo/index.html';
+
+// Task 34: Click Talk
+export const FIXTURE_TALK_FIRST_WAV_PATH = resolve(GENERATED_DIR, 'click-talk-first.wav');
+export const FIXTURE_TALK_PLAY_WAV_PATH = resolve(GENERATED_DIR, 'click-talk-play.wav');
+export const FIXTURE_TALK_ONE_WAV_PATH = resolve(GENERATED_DIR, 'click-talk-one.wav');
+export const FIXTURE_TALK_TIMES_PATH = resolve(GENERATED_DIR, 'click-talk-times.json');
+export const FIXTURE_TALK_STORED_PATH = resolve(GENERATED_DIR, 'click-talk-stored.json');   // the localStorage text of the model of a returning user
+export const TALK_PAGE_URL = '/apps/click-talk/index.html';

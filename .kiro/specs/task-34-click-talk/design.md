@@ -49,7 +49,7 @@ Stored key `click-talk:settings` (`SETTINGS_KEY`). `saveSettings` is `JSON.strin
 `pickVoice` takes `readonly VoiceLike[]` (structural: `voiceURI`, `name`, `lang`, `localService`), so a real `SpeechSynthesisVoice` fits. With `onlineVoices` false the list is first reduced to `localService === true`, so a network voice is never picked, also not by `voiceURI`. English is `en`, `en-US`, `en_GB` and so on. `speak()` is run B.
 
 ## Keys (keys.ts)
-`actionForKey(key, { mode, level })` gives `{ type: 'sound', sound }` (run B sends `inject(sound)`), `{ type: 'stopHelp' }`, or null. Decision: in one-sound mode only Enter is `click`, as written in the task; Space is left to the browser. If a one-switch device sends Space, run B or the operator may want Space there too (one line in `keys.ts` and its test).
+`actionForKey(key, { mode, level })` gives `{ type: 'sound', sound }` (run B sends `inject(sound)`), `{ type: 'stopHelp' }`, or null. Run B correction: Space is `click` in both modes, because switch devices send Space. Only Enter changes: `pop` in two-sound mode, `click` in one-sound mode.
 
 ## Copy (teach-texts.ts)
 `WELCOME_TEXT`, `MODE_TEXT`, `TEACH_LINE` (the `record` text of each sound, with the 10 in the sentence), `BACKGROUND_LINE` (the `recordBackground` text), all from section 5. A test reads `click-talk.md` when it is present and checks every line against it; without the file the test is skipped.

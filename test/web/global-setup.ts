@@ -2,6 +2,7 @@ import { generateFixtures, generateHumFixtures, generateTeachFixtures, generateT
 import { generateHandsFreeFixture } from './hands-free-fixture';
 import { generateKnockOnceFixture } from './knock-once-fixture';
 import { generateShooFixture } from './shoo-fixture';
+import { generateTalkFixture } from './click-talk-fixture';
 import { generateSlidesFixture } from './slides-fixture';
 
 // Runs once before the browser tests. It writes the fixtures into the ignored folder and fails the run if the
@@ -15,4 +16,5 @@ export default async function globalSetup(): Promise<void> {
   await generateKnockOnceFixture();   // Task 23
   await generateSlidesFixture();      // Task 26
   await generateShooFixture();        // Task 33
+  await generateTalkFixture();        // Task 34
 }

@@ -15,11 +15,13 @@ Test first. English only. Do not push or publish. Do not touch `docs/_planning/`
 - [x] 10. Commit with `feat: add Click Talk board rules`.
 
 ## Run B: screen, speech, alarm, caregiver screen, wiring, browser tests
-- [ ] 11. `apps/click-talk/index.html`, `src/style.css` and `src/view.ts` from the approved mockup (requirement 19).
-- [ ] 12. `speak()` in `src/speech.ts` and the no-voice notice (requirement 20).
-- [ ] 13. `src/alarm.ts`: generated repeating alarm (requirement 21).
-- [ ] 14. `src/caregiver.ts`: the settings screen (requirement 22).
-- [ ] 15. `src/main.ts` with the tokk block, the `settleBurst` timer, the one-sound tick, the mic card and keys mode (requirement 23).
-- [ ] 16. `test/web/click-talk.spec.ts` and `test/web/click-talk-fixture.ts` (requirement 24).
-- [ ] 17. Update `docs/integration.md` and the README wiring counts from `npm run count:wiring`.
-- [ ] 18. Run all checks of the plan (`npm test`, `npm run test:web` twice, tsc x3, `check:public-api`, `build:site`, `count:wiring`). Commit `feat: add Click Talk app`.
+- [x] 11. `apps/click-talk/index.html`, `src/style.css` and `src/view.ts` from the approved mockup (requirement 19).
+- [x] 12. `speak()` in `src/speech.ts` and the no-voice notice (requirement 20).
+- [x] 13. `src/alarm.ts`: generated repeating alarm (requirement 21).
+- [x] 14. `src/caregiver.ts`: the settings screen (requirement 22).
+- [x] 15. `src/main.ts` with the tokk block, the `settleBurst` timer, the one-sound tick, the mic card and keys mode (requirement 23).
+- [x] 16. `test/web/click-talk.spec.ts` and `test/web/click-talk-fixture.ts` (requirement 24).
+- [x] 17. Update `docs/integration.md` and the README wiring counts from `npm run count:wiring`.
+- [x] 18. Run all checks of the plan (`npm test`, `npm run test:web` twice, tsc x3, `check:public-api`, `build:site`, `count:wiring`). Commit `feat: add Click Talk app`.
+
+Run B results: npm test 89 files, 1287 passed, 2 todo; pbt:quick 144 passed; test:web 109 passed, 1 skipped (the screenshot test), twice; wiring 27 lines.

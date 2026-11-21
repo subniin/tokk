@@ -149,7 +149,7 @@ describe('README.md (Task 27)', () => {
 
   it('RM4: wiring numbers equal count:wiring', () => {
     const wiring = wiringNow();
-    expect(wiring.size).toBe(5);   // Task 33, named update: apps/shoo is the fifth group
+    expect(wiring.size).toBe(6);   // Task 34, named update: apps/click-talk is the sixth group
     expect(wiringProblems(readme(), wiring)).toEqual([]);
     const wrong = new Map(wiring).set('apps/hands-free', wiring.get('apps/hands-free')! + 1);
     expect(wiringProblems(readme(), wrong).length).toBeGreaterThan(0);
