@@ -22,6 +22,10 @@ const WINDOW_WIDTH_PX = 1280;
 const WINDOW_HEIGHT_PX = 720;
 const NARROW_WIDTH_PX = 320;
 const NARROW_HEIGHT_PX = 640;
+const HUD_WIDTH_PX = 1024;
+const HUD_HEIGHT_PX = 768;
+const CANDLE_WIDTH_PX = 26;                       // apps/shoo/src/style.css .candles svg
+const CANDLE_GAP_PX = 8;
 const SCREENSHOT_WIDTH_PX = 1000;
 const SCREENSHOT_HEIGHT_PX = 760;
 const SCREENSHOT_MAX_BYTES = 400_000;
@@ -102,14 +106,14 @@ const shooed = async (page: Page): Promise<number> => Number(await stage(page).g
 const warden = (page: Page) => page.locator('.mon[data-kind="warden"]');
 const bat = (page: Page) => page.locator('.mon[data-kind="bat"]');
 
-// Presses a key until a bat of the field has been shooed (it may need a moment for the sound to cross the Worker).
+// Presses '1' once and waits for a bat of the field to be shooed. The key goes through the Worker, so the count grows a
+// moment later. A second press inside that moment would shoo a second bat, so the press is repeated only after a pause
+// longer than the Worker round trip (a press that found no bat is lost).
 async function shooABat(page: Page): Promise<void> {
   const before = await shooed(page);
   await expect(bat(page).first()).toBeVisible({ timeout: STEP_TIMEOUT_MS });
-  await expect.poll(async () => {
-    await page.keyboard.press('1');
-    return shooed(page);
-  }, { timeout: STEP_TIMEOUT_MS, intervals: [POLL_MS] }).toBeGreaterThan(before);
+  await page.keyboard.press('1');
+  await expect.poll(async () => shooed(page), { timeout: STEP_TIMEOUT_MS, intervals: [POLL_MS] }).toBeGreaterThan(before);
 }
 
 // Nothing is wider than the window, and no text sticks out of the window or of its own box.
@@ -455,6 +459,42 @@ test.describe('playing with keys', () => {
     await context.close();
   });
 
+  // Every box of the HUD (candles, wave, Keys only / Listening, Pause, Settings) is inside the window, and the candles box is as
+  // wide as its candles. 1024 x 768 with 3 lives is the case of the operator's report; the other rows are the widths and lives
+  // the game can have (?lives= goes up to 9).
+  const HUD_CASES = [
+    { width: HUD_WIDTH_PX, height: HUD_HEIGHT_PX, lives: 3 },
+    { width: NARROW_WIDTH_PX, height: NARROW_HEIGHT_PX, lives: 3 },
+    { width: NARROW_WIDTH_PX, height: NARROW_HEIGHT_PX, lives: 9 },
+    { width: HUD_WIDTH_PX, height: HUD_HEIGHT_PX, lives: 9 },
+    { width: WINDOW_WIDTH_PX, height: WINDOW_HEIGHT_PX, lives: 3 },
+  ];
+  for (const { width, height, lives } of HUD_CASES) {
+    test(`in keys mode at ${width} x ${height} with ${lives} lives every HUD box is inside the window`, async ({ browser, baseURL }) => {
+      const context = await browser.newContext({ baseURL, viewport: { width, height } });
+      const page = await context.newPage();
+      await page.goto(`${SHOO_PAGE_URL}?lives=${lives}`);
+      await page.getByRole('button', { name: 'Play with keys' }).click();
+      await expect(stage(page)).toHaveAttribute('data-phase', 'battle');
+      await expect(page.locator('#candles')).toHaveAttribute('data-lives', String(lives));
+      const outside = await page.evaluate(() => {
+        const w = document.documentElement.clientWidth;
+        const h = document.documentElement.clientHeight;
+        const out: string[] = [];
+        for (const e of Array.from(document.querySelectorAll('#hud, #hud *'))) {
+          const r = e.getBoundingClientRect();
+          if (r.width === 0 && r.height === 0) continue;
+          if (r.left < 0 || r.top < 0 || r.right > w || r.bottom > h) out.push(`${e.id || e.tagName} ${Math.round(r.left)}..${Math.round(r.right)} x ${Math.round(r.top)}..${Math.round(r.bottom)}`);
+        }
+        return out;
+      });
+      expect(outside, 'HUD boxes outside the window').toEqual([]);
+      const candles = await page.locator('#candles').boundingBox();
+      const own = lives * CANDLE_WIDTH_PX + (lives - 1) * CANDLE_GAP_PX;
+      if (width > NARROW_WIDTH_PX || lives <= 3) expect(candles?.width ?? 0, 'the candles box is as wide as its candles').toBeLessThanOrEqual(own + 1);
+      await context.close();
+    });
+  }
   for (const width of [NARROW_WIDTH_PX, WINDOW_WIDTH_PX]) {
     test(`at ${width} px the page has no horizontal scroll and no clipped text`, async ({ browser, baseURL }) => {
       const context = await browser.newContext({ baseURL, viewport: { width, height: width === NARROW_WIDTH_PX ? NARROW_HEIGHT_PX : WINDOW_HEIGHT_PX } });

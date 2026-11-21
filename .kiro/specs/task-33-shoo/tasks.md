@@ -21,3 +21,6 @@ Test first. English only. Do not push or publish. Do not touch `docs/_planning/`
 - [x] 14. Tune counts, speeds and spawn intervals by play; record them in `design.md`. Nobody could play in this run: the start values stay and design.md says so. Tuning by play is open.
 - [x] 15. (The link from `site-src/index.html` was not made: the task forbids touching it.) Update `docs/integration.md` and the README wiring counts from `npm run count:wiring`.
 - [x] 16. Run all checks of the plan (`npm test`, `npm run test:web` twice, tsc x3, `check:public-api`, `build:site`, `count:wiring`). Commit `feat: add Shoo! sound defense game`.
+
+## Fix run (2026-11-22)
+- [x] 17. Fix two bugs found by the operator after f14cf7e: `shooABat()` in `test/web/shoo.spec.ts` pressed '1' on every poll, so two bats could be shooed before the Worker counted the first (strict mode violation on `.plus`); it now presses once and waits for `data-shooed` to grow (no other test relied on the repeated press). The HUD grid stretched `#candles` to 453 px; `.candles` is now `width: max-content; max-width: 100%`, the grid columns are `minmax(0, ...)` so the corner wraps instead of overflowing, and a browser check (1024 x 768, 320 and 1280 px, 3 and 9 lives) tests that every HUD box is inside the window.
