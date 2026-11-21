@@ -1,20 +1,22 @@
 // The static site for GitHub Pages (Task 21).
 //   npm run build:site [-- --out <folder>] [-- --apps-dir <folder>] [-- --cases-dir <folder>]
-// Writes the landing page, teach.html, the hello example, every app, every case (Task 26) and the two dist files they need below one output
+// Writes the landing page with its bundle and style (Task 35) and its media folder, teach.html, the hello example, every app, every case (Task 26) and the two dist files they need below one output
 // folder (default site/). Every URL in the output is relative, so the site works under /tokk/.
 // It writes straight into the output folder and never touches dist/, so a running dev server is not disturbed.
 // It reads files and writes below the output folder only, and sends nothing over the network.
 
-import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { copyFileSync, cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { build as esbuild } from 'esbuild';
-import { appBuildOptions, BROWSER_PACKAGE_OPTIONS, failedApp, findApps, TEACH_PAGE_OPTIONS, workerSourcePlugin } from './build';
+import { appBuildOptions, BROWSER_PACKAGE_OPTIONS, failedApp, findApps, SITE_SRC_DIR, TEACH_PAGE_OPTIONS, workerSourcePlugin } from './build';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DEFAULT_OUT_DIR = join(ROOT, 'site');
 const DEFAULT_APPS_DIR = join(ROOT, 'apps');
 const DEFAULT_CASES_DIR = join(ROOT, 'cases');
+// Links that are not looked up in the output: an anchor in the page and a link to this repository on GitHub.
+const GITHUB_REPOSITORY_URL = 'https://github.com/subniin/tokk';
 // A case folder never ships its sound model: the model of a case only serves a Node test, and its page teaches the user's own sound.
 export const CASE_SKIPPED_FILES = ['sounds.json'];
 // The recordings of a case only serve Node tests (privacy rule: recordings stay in local folders), so the folder is not copied, not even empty.
@@ -73,7 +75,7 @@ function listOutput(outDir: string): SiteFile[] {
 // The href values of the landing page that point to something missing from the output (a warning each, no failure).
 function deadLandingLinks(outDir: string): string[] {
   const html = readFileSync(join(outDir, 'index.html'), 'utf8');
-  const hrefs = [...html.matchAll(/<a\b[^>]*\bhref\s*=\s*"([^"]*)"/gi)].map((m) => m[1]);
+  const hrefs = [...html.matchAll(/<a\b[^>]*\bhref\s*=\s*"([^"]*)"/gi)].map((m) => m[1]).filter((href) => !href.startsWith('#') && !href.startsWith(GITHUB_REPOSITORY_URL));
   return hrefs.filter((href) => {
     const target = resolve(outDir, href);
     return href.endsWith('/') ? !existsSync(join(target, 'index.html')) : !existsSync(target);
@@ -82,9 +84,10 @@ function deadLandingLinks(outDir: string): string[] {
 
 // With an appsDir and no casesDir no case is copied (so a test with a fixture appsDir keeps its exact file list).
 // With neither, the real apps/ and cases/ folders are used.
-export async function buildSite(options: { outDir?: string; appsDir?: string; casesDir?: string } = {}): Promise<SiteResult> {
+export async function buildSite(options: { outDir?: string; appsDir?: string; casesDir?: string; siteSrcDir?: string } = {}): Promise<SiteResult> {
   const outDir = resolve(options.outDir ?? DEFAULT_OUT_DIR);
   const appsDir = resolve(options.appsDir ?? DEFAULT_APPS_DIR);
+  const siteSrcDir = resolve(options.siteSrcDir ?? SITE_SRC_DIR);
   const casesDir = options.casesDir !== undefined ? resolve(options.casesDir) : options.appsDir === undefined ? DEFAULT_CASES_DIR : undefined;
   checkOutDir(outDir);
   const apps = findApps(appsDir);
@@ -92,13 +95,16 @@ export async function buildSite(options: { outDir?: string; appsDir?: string; ca
 
   rmSync(outDir, { recursive: true, force: true });
   mkdirSync(outDir, { recursive: true });
-  copyFileSync(join(ROOT, 'site-src', 'index.html'), join(outDir, 'index.html'));
+  copyFileSync(join(siteSrcDir, 'index.html'), join(outDir, 'index.html'));
+  // The files of the page's media folder are copied as they are: the deny list is for app folders.
+  if (existsSync(join(siteSrcDir, 'media'))) cpSync(join(siteSrcDir, 'media'), join(outDir, 'media'), { recursive: true });
   copyFileSync(join(ROOT, 'teach.html'), join(outDir, 'teach.html'));
 
   // The plugin instances are made here, so no build shares one by accident.
   await Promise.all([
     esbuild({ ...BROWSER_PACKAGE_OPTIONS, outfile: join(outDir, 'dist', 'tokk.js'), plugins: [workerSourcePlugin(true)] }),
     esbuild({ ...TEACH_PAGE_OPTIONS, outfile: join(outDir, 'dist', 'teach-page.js'), minify: true, plugins: [workerSourcePlugin(true)] }),
+    esbuild(appBuildOptions(siteSrcDir, { minify: true, outfile: join(outDir, 'dist', 'landing.js') })),
   ]);
   copyTree(join(ROOT, 'examples', 'hello'), join(outDir, 'examples', 'hello'));
   const groups: { label: string; folder: string; from: string | undefined; names: string[]; skip: string[]; skipFolders: string[] }[] = [

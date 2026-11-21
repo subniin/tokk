@@ -8,7 +8,7 @@ import { dirname, join } from 'node:path';
 
 export const FIXTURE_PROOF_TEXT = 'tokk import resolved: listen is a function';
 export const FIXTURE_ASSET_NAME = 'asset.txt';
-export const FIXTURE_APP_NAMES = ['hands-free', 'knock-once'];
+export const FIXTURE_APP_NAMES = ['click-talk', 'shoo'];
 
 function put(path: string, text: string | Uint8Array): void {
   mkdirSync(dirname(path), { recursive: true });

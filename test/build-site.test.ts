@@ -7,16 +7,11 @@ import { dirname, join, relative } from 'node:path';
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
 import { buildSite, SITE_DENY_LIST } from '../scripts/build-site';
-import { contrastRatio } from './helpers/contrast';
 import { FIXTURE_APP_NAMES, makeFixtureApps } from './helpers/fixture-apps';
 import { hrefsOf, scanHtml, scanScriptOrCss, scanSiteFile } from './helpers/relative-urls';
 import { REPO_ROOT } from './web/paths';
 
 const SITE_BUILD_TIMEOUT_MS = 180_000;
-const TEXT_CONTRAST_MIN = 4.5;
-const FOCUS_OUTLINE_MIN_PX = 2;
-// Task 26 (named update): the landing page also links cases/slides/.
-const LANDING_HREFS = ['teach.html', 'examples/hello/', 'apps/hands-free/', 'apps/knock-once/', 'cases/slides/'];
 const CASE_LINK_WARNING = 'index.html links to "cases/slides/"';
 const SCRIPT = join(REPO_ROOT, 'scripts', 'build-site.ts');
 const TSX_URL = pathToFileURL(createRequire(import.meta.url).resolve('tsx')).href;
@@ -39,7 +34,7 @@ function listFiles(dir: string): string[] {
 const read = (p: string): string => readFileSync(join(REPO_ROOT, p), 'utf8');
 
 const EXPECTED_FILES = [
-  'index.html', 'teach.html', 'dist/tokk.js', 'dist/teach-page.js',
+  'index.html', 'teach.html', 'dist/tokk.js', 'dist/teach-page.js', 'dist/landing.js', 'dist/landing.css',
   'examples/hello/index.html', 'examples/hello/sounds.json',
   ...FIXTURE_APP_NAMES.flatMap((n) => [`apps/${n}/index.html`, `apps/${n}/asset.txt`, `apps/${n}/dist/app.js`]),
 ].sort();
@@ -101,6 +96,9 @@ describe('the site build (Task 21)', () => {
     ];
     for (const sample of badHtml) expect(scanHtml(sample), sample).not.toEqual([]);
     expect(scanHtml('<img src="data:image/png;base64,AAAA"><a href="a/">x</a><script src="./x.js"></script>')).toEqual([]);
+    // Task 35: a link to this repository on GitHub is the one allowed external URL, and only in an <a>.
+    expect(scanHtml('<a href="https://github.com/subniin/tokk">x</a><a href="https://github.com/subniin/tokk/blob/main/docs/kiro.md">x</a>')).toEqual([]);
+    for (const sample of ['<a href="https://github.com/other/tokk">', '<a href="https://github.com/subniin/tokk-evil">', '<link href="https://github.com/subniin/tokk">', '<img src="https://github.com/subniin/tokk/x.png">']) expect(scanHtml(sample), sample).not.toEqual([]);
     const badJs = [
       'a{background:url(/x.png)}', "@import '/x.css';", "import x from '/x.js';", "import '/x.js';", "import('/x.js')",
       "fetch('/x.json')", "new Worker('/w.js')", "new URL('/x', base)", "fetch('http://localhost:5173/x')", 'import{a}from"/x.js"',
@@ -113,30 +111,20 @@ describe('the site build (Task 21)', () => {
     expect(problems).toEqual([]);
   });
 
-  it('S4: the landing page follows the requirements', () => {
+  it('S4: the landing page of the output follows the requirements (the copy and the style are checked in test/landing.test.ts)', () => {
     const html = readFileSync(join(outDir, 'index.html'), 'utf8');
     expect(html).toMatch(/<html lang="en"/);
     expect(html).toMatch(/<title>[^<]+<\/title>/);
     expect(html).toMatch(/<meta name="viewport"/);
     expect((html.match(/<h1\b/g) ?? []).length).toBe(1);
-    expect(hrefsOf(html)).toEqual(LANDING_HREFS);
-    expect(html).not.toMatch(/<script|<link|<img|@import|https?:|transition|animation|<iframe/i);
-    expect(html).toContain('Audio stays on your device');
-    const rules = new Map<string, string>();
-    for (const m of html.matchAll(/([^{}<>]+)\{([^}]*)\}/g)) rules.set(m[1].trim(), m[2]);
-    const decl = (sel: string, prop: string): string => {
-      const m = new RegExp(`(?:^|[;\\s])${prop}\\s*:\\s*(#[0-9a-fA-F]{6})`).exec(rules.get(sel) ?? '');
-      if (!m) throw new Error(`no ${prop} colour in ${sel}`);
-      return m[1];
-    };
-    const bg = decl('body', 'background');
-    for (const fg of [decl('body', 'color'), decl('a', 'color'), decl('a:visited', 'color')]) {
-      expect(contrastRatio(fg, bg), fg).toBeGreaterThanOrEqual(TEXT_CONTRAST_MIN);
-    }
-    const focus = [...rules].find(([sel]) => sel.includes(':focus-visible'));
-    expect(focus, 'a :focus-visible rule').toBeDefined();
-    expect(Number(/outline\s*:\s*(\d+)px/.exec(focus?.[1] ?? '')?.[1])).toBeGreaterThanOrEqual(FOCUS_OUTLINE_MIN_PX);
-    expect(html).toMatch(/max-width/);
+    expect(hrefsOf(html)).toContain('apps/click-talk/');
+    expect(hrefsOf(html)).toContain('apps/shoo/');
+    expect(hrefsOf(html)).toContain('cases/slides/');
+    expect(hrefsOf(html)).toContain('teach.html');
+    expect(html).not.toMatch(/<script(?![^>]*\bsrc=)/i);
+    expect(html).toContain('Audio stays on the device');
+    expect(html).toContain('src="dist/landing.js"');
+    expect(html).toContain('href="dist/landing.css"');
   });
 
   it('S5: the hello page maps tokk to the local build, teach.html loads a relative script, and no source has an absolute URL', () => {
@@ -169,13 +157,13 @@ describe('the site build (Task 21)', () => {
   }, SITE_BUILD_TIMEOUT_MS);
 
   it('S7: a missing app gives one warning per dead link and no failure; two builds are byte-identical; the CLI takes --out and --apps-dir', async () => {
-    const onlyOne = makeFixtureApps(['hands-free']);
+    const onlyOne = makeFixtureApps(['click-talk']);
     temps.push(onlyOne);
     const out = tempDir('tokk-one-');
     const result = await buildSite({ outDir: out, appsDir: onlyOne });
     // Task 26 (named update): one more dead link, cases/slides/, because no casesDir is given.
     expect(result.warnings).toHaveLength(2);
-    expect(result.warnings.filter((w) => w.includes('apps/knock-once/'))).toHaveLength(1);
+    expect(result.warnings.filter((w) => w.includes('apps/shoo/'))).toHaveLength(1);
     expect(result.warnings.filter((w) => w.includes(CASE_LINK_WARNING))).toHaveLength(1);
     const none = await buildSite({ outDir: tempDir('tokk-none-'), appsDir: join(REPO_ROOT, 'no-such-apps') });
     expect(none.warnings).toHaveLength(3);
@@ -189,8 +177,8 @@ describe('the site build (Task 21)', () => {
     expect(r.status, r.stderr).toBe(0);
     expect(r.stdout).toContain('index.html');
     expect(r.stdout).toMatch(/total/i);
-    expect(`${r.stdout}${r.stderr}`).toContain('apps/knock-once/');
-    expect(listFiles(cliOut)).toContain('apps/hands-free/dist/app.js');
+    expect(`${r.stdout}${r.stderr}`).toContain('apps/shoo/');
+    expect(listFiles(cliOut)).toContain('apps/click-talk/dist/app.js');
   }, SITE_BUILD_TIMEOUT_MS);
 });
 
@@ -258,7 +246,7 @@ describe('the site build and cases (Task 26, U3)', () => {
     const problems = listFiles(outDir).filter((f) => f.startsWith('cases/')).flatMap((f) => scanSiteFile(f, readFileSync(join(outDir, f), 'utf8')));
     expect(problems).toEqual([]);
     expect(scanSiteFile('x.html', '<link rel="stylesheet" href="/dist/app.css">')).not.toEqual([]);
-    expect(listFiles(outDir)).toContain('apps/hands-free/dist/app.js');
+    expect(listFiles(outDir)).toContain('apps/click-talk/dist/app.js');
   });
 
   it('U3: no case is copied when only appsDir is given, and the file list is the one of the app-only build', async () => {
@@ -286,5 +274,89 @@ describe('the site build and cases (Task 26, U3)', () => {
     expect(r.status, r.stderr).toBe(0);
     expect(listFiles(out)).toContain('cases/slides/dist/app.js');
     expect(`${r.stdout}${r.stderr}`).not.toContain('Warning');
+  }, SITE_BUILD_TIMEOUT_MS);
+});
+// Task 35: the page bundle, the media folder and the links of the page.
+describe('the site build and the new page (Task 35, run A)', () => {
+  const GITHUB = 'https://github.com/subniin/tokk';
+  let appsDir = '';
+  let casesDir = '';
+  let outDir = '';
+  let siteSrcDir = '';
+  let result: { warnings: string[]; files: { path: string }[] };
+
+  // A fixture page: the real source layout (index.html, src/main.ts, style.css) and a media folder with a .wav and a nested file.
+  function makeFixtureSite(): string {
+    const dir = tempDir('tokk-site-src-');
+    const put = (rel: string, text: string | Uint8Array): void => { mkdirSync(dirname(join(dir, rel)), { recursive: true }); writeFileSync(join(dir, rel), text); };
+    put('index.html', '<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Fixture</title><link rel="stylesheet" href="dist/landing.css"></head><body><h1>Fixture</h1><a href="apps/click-talk/">a</a><a href="#top">t</a><a href="' + GITHUB + '">g</a><script type="module" src="dist/landing.js"></script></body></html>');
+    put('src/main.ts', "import '../style.css';\nimport { NAME } from './constants';\ndocument.title = NAME;\n");
+    put('src/constants.ts', "export const NAME = 'fixture page';\n");
+    put('style.css', 'h1 { color: #111111; }\n');
+    put('media/clap-demo.wav', new Uint8Array([82, 73, 70, 70, 0, 1, 2, 3]));
+    put('media/nested/model.json', '{"a":1}\n');
+    put('media/notes.md', '# kept as it is\n');
+    return dir;
+  }
+
+  beforeAll(async () => {
+    appsDir = makeFixtureApps();
+    temps.push(appsDir);
+    casesDir = join(REPO_ROOT, 'cases');
+    siteSrcDir = makeFixtureSite();
+    outDir = tempDir('tokk-site-page-');
+    result = await buildSite({ outDir, appsDir, casesDir, siteSrcDir });
+  }, SITE_BUILD_TIMEOUT_MS);
+
+  it('P1: the output holds the page, its bundle and CSS, both apps, the slides case and teach.html, and no warning', () => {
+    const files = listFiles(outDir);
+    for (const f of ['index.html', 'dist/landing.js', 'dist/landing.css', 'teach.html', 'apps/click-talk/index.html', 'apps/click-talk/dist/app.js',
+      'apps/shoo/index.html', 'apps/shoo/dist/app.js', 'cases/slides/index.html', 'cases/slides/dist/app.js']) expect(files, f).toContain(f);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it('P2: site-src/media is copied as it is, .wav and .md included, and nothing else of site-src is copied', () => {
+    expect(readFileSync(join(outDir, 'media', 'clap-demo.wav')).equals(readFileSync(join(siteSrcDir, 'media', 'clap-demo.wav')))).toBe(true);
+    expect(readFileSync(join(outDir, 'media', 'nested', 'model.json'), 'utf8')).toBe('{"a":1}\n');
+    expect(readFileSync(join(outDir, 'media', 'notes.md'), 'utf8')).toBe('# kept as it is\n');
+    const files = listFiles(outDir);
+    expect(files.filter((f) => f.startsWith('media/'))).toEqual(['media/clap-demo.wav', 'media/nested/model.json', 'media/notes.md']);
+    expect(files.filter((f) => /^(src|style\.css)/.test(f))).toEqual([]);
+  });
+
+  it('P3: the page bundle is minified and its CSS holds the imported rule', () => {
+    const js = readFileSync(join(outDir, 'dist', 'landing.js'), 'utf8');
+    expect(js).toContain('fixture page');
+    expect(js.split('\n').length).toBeLessThan(5);
+    expect(readFileSync(join(outDir, 'dist', 'landing.css'), 'utf8')).toMatch(/h1\s*\{\s*color:\s*#111/);
+  });
+
+  it('P4: no dead link, and no external URL except links that start with the GitHub repository, in every file', () => {
+    const problems = listFiles(outDir).flatMap((f) => scanSiteFile(f, readFileSync(join(outDir, f), 'utf8')));
+    expect(problems).toEqual([]);
+    for (const f of ['index.html', 'dist/landing.css']) {
+      const text = readFileSync(join(outDir, f), 'utf8').split(GITHUB).join('');
+      expect(text, f).not.toMatch(/https?:\/\//);
+    }
+  });
+
+  it('P5: a missing media folder copies nothing and does not fail; a dead link, an anchor and a GitHub link are told apart', async () => {
+    const noMedia = makeFixtureSite();
+    rmSync(join(noMedia, 'media'), { recursive: true });
+    const out = tempDir('tokk-site-nomedia-');
+    const noApps = await buildSite({ outDir: out, appsDir: join(REPO_ROOT, 'no-such-apps'), casesDir: join(REPO_ROOT, 'no-such-cases'), siteSrcDir: noMedia });
+    expect(existsSync(join(out, 'media'))).toBe(false);
+    // Only the link to a missing app is a warning. "#top" and the GitHub link are not.
+    expect(noApps.warnings).toHaveLength(1);
+    expect(noApps.warnings[0]).toContain('apps/click-talk/');
+  }, SITE_BUILD_TIMEOUT_MS);
+
+  it('P6: the real page builds with the real source folder: landing.js, landing.css and index.html', async () => {
+    const out = tempDir('tokk-site-real-page-');
+    const real = await buildSite({ outDir: out, appsDir, casesDir });
+    expect(listFiles(out)).toEqual(expect.arrayContaining(['index.html', 'dist/landing.js', 'dist/landing.css']));
+    expect(real.warnings).toEqual([]);
+    const html = readFileSync(join(out, 'index.html'), 'utf8');
+    expect(html).toBe(readFileSync(join(REPO_ROOT, 'site-src', 'index.html'), 'utf8'));
   }, SITE_BUILD_TIMEOUT_MS);
 });

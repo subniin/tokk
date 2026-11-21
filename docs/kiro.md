@@ -120,3 +120,4 @@ The operator checked these pages on 2026-11-20:
 | `.kiro/specs/task-32b-background-length/` | Task 32b, `TeachOptions.backgroundMs`: a background recording of a set length that ends by itself |
 | `.kiro/specs/task-33-shoo/` | Task 33, Shoo! sound defense game (run A: rules and tests; run B: screen and wiring) |
 | `.kiro/specs/task-34-click-talk/` | Task 34, Click Talk two-sound communication board (run A: rules and tests; run B: screen, speech, alarm and wiring) |
+| `.kiro/specs/task-35-site/` | Task 35, the new site page (run A: build, page and demo box layout; run B: demo box behaviour) |

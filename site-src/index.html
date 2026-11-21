@@ -1,27 +1,184 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Tokk: react to short sounds</title>
-  <style>
-    body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; background: #fafafa; line-height: 1.5; overflow-wrap: anywhere; }
-    a { color: #1d4ed8; }
-    a:visited { color: #5b21b6; }
-    a:focus-visible { outline: 3px solid #1a1a1a; outline-offset: 3px; }
-    li { margin-bottom: 0.75rem; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tokk: react to short sounds</title>
+<meta name="description" content="Tokk turns claps, knocks and tongue clicks into events your app can use. Teaching takes seconds. Nothing leaves the device.">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="dist/landing.css">
 </head>
 <body>
-  <h1>Tokk</h1>
-  <p>Tokk lets a web page react to short sounds, such as a clap, a knock or a tongue click, with the sound model and every recording kept on your device.</p>
-  <p>Audio stays on your device. Each page below asks for the microphone only after you press its button.</p>
-  <ul>
-    <li><a href="teach.html">Teach a sound</a>: a developer page that records a sound ten times and writes a sound model.</li>
-    <li><a href="examples/hello/">Hello example</a>: listen to the microphone and read every sound and pattern as text.</li>
-    <li><a href="apps/hands-free/">Hands-Free</a>: browse the web with mouth sounds.</li>
-    <li><a href="apps/knock-once/">Knock Once for Yes</a>: answer a ghost's questions by knocking.</li>
-    <li><a href="cases/slides/">Slides</a>: a deck about Tokk, built with reveal.js. It has no sound control yet.</li>
-  </ul>
+<header class="nav">
+  <div class="wrap">
+    <a class="logo" href="#top"><svg viewBox="0 0 28 20" aria-hidden="true"><rect x="0" y="7" width="4" height="6" rx="2" fill="currentColor"/><rect x="6" y="3" width="4" height="14" rx="2" fill="currentColor"/><rect x="12" y="0" width="4" height="20" rx="2" fill="var(--accent)"/><rect x="18" y="4" width="4" height="12" rx="2" fill="currentColor"/><rect x="24" y="8" width="4" height="4" rx="2" fill="currentColor"/></svg>Tokk</a>
+    <nav class="links" aria-label="Page"><a href="#demo">Demo</a><a href="#apps">Apps</a><a href="#build">Build</a><a href="#how">How it works</a><a class="gh" href="https://github.com/subniin/tokk">GitHub</a></nav>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <h1>Teach a web page a new sound.</h1>
+        <p>Tokk turns claps, knocks and tongue clicks into events your app can use. Teaching takes seconds. Nothing leaves the device.</p>
+        <div class="row"><a class="btn primary" href="https://github.com/subniin/tokk">Use this template</a><a class="btn ghost" href="#apps">See the apps</a></div>
+      </div>
+
+      <div class="demo" id="demo" data-st="idle" role="group" aria-label="Try Tokk">
+        <div class="demo-head"><strong>Try it: clap twice</strong><span class="state" id="state" aria-live="polite">ready</span></div>
+        <div class="wave dim" id="wave" aria-hidden="true"></div>
+        <div class="stage">
+          <div class="st s-idle">
+            <p>Teach 5 claps, then let it hear the room for 10 seconds.</p>
+            <div class="row"><button class="btn primary" id="demo-start" type="button">Turn on the microphone</button><button class="btn ghost" id="demo-recording" type="button">Hear a recording</button></div>
+          </div>
+          <div class="st s-teach">
+            <div class="big">Clap 5 times</div>
+            <div class="dots" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+            <p>3 of 5 heard</p>
+          </div>
+          <div class="st s-room">
+            <div class="big">Now the room</div>
+            <p>Now 10 seconds of the room. Talk or type as usual.</p>
+            <div class="timer" aria-hidden="true"><i></i></div>
+            <p>7 s left</p>
+          </div>
+          <div class="st s-live">
+            <div class="big accent">clap clap</div>
+            <div class="events"><b>Heard</b><span>clap 2.41 s</span><span>clap 2.73 s</span><span class="m">clap clap</span></div>
+            <p>Clap twice again, or try three times.</p>
+            <p class="rec-note">Playing a recording. The same engine is listening to it.</p>
+          </div>
+          <div class="st s-fail">
+            <p class="fail">The microphone is blocked. Allow it in the address bar, or hear a recording instead.</p>
+            <div class="row"><button class="btn primary" id="demo-fail-recording" type="button">Hear a recording</button><button class="btn ghost" id="demo-retry" type="button">Try again</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="apps">
+    <div class="wrap">
+      <h2>Two apps, one template.</h2>
+      <p class="lede">The same engine runs two apps with opposite jobs.</p>
+      <div class="apps">
+        <article class="app">
+          <div class="shot ct" aria-hidden="true">
+            <div style="--c:#2f7d4f;background:#e4f1e8">Needs</div><div class="on" style="--c:#2563a8;background:#e3ecf7">Body</div><div style="--c:#9a6200;background:#f8eed6">People</div>
+            <div style="--c:#0f6f68;background:#dcefec">Talk</div><div style="--c:#4b5560;background:#eceff1">Frequent</div><div style="--c:#b4231f;background:#fbe4e2;color:#b4231f">Help</div>
+          </div>
+          <div class="body">
+            <h3>Click Talk</h3>
+            <p>Talk with two mouth sounds. For people who cannot speak or use their hands.</p>
+            <div class="meta"><span class="chip">click</span><span class="chip">pop</span></div>
+            <div class="meta"><span>Wiring <b>27 lines</b></span><span>Built in <b>1 h 32 min</b></span><span><b>about 56 Kiro credits</b></span></div>
+            <div class="foot"><span></span><a class="btn ghost" href="apps/click-talk/" aria-label="Open Click Talk">Open</a></div>
+          </div>
+        </article>
+        <article class="app">
+          <div class="shot sh" aria-hidden="true">
+            <div class="path"></div><div class="moon"></div>
+            <span class="tag" style="left:47%;top:14%;color:#6cc4b8">click</span>
+            <span class="tag" style="left:60%;top:38%;color:#dfe9e6">clap</span>
+            <span class="tag" style="left:40%;top:60%;color:#d8c39a">knock</span>
+            <span class="burst" style="left:66%;top:72%">CLAP!</span>
+          </div>
+          <div class="body">
+            <h3>Shoo!</h3>
+            <p>A Halloween defense game. Every monster runs from one sound.</p>
+            <div class="meta"><span class="chip">click</span><span class="chip">clap</span><span class="chip">knock</span><span class="chip">pop</span></div>
+            <div class="meta"><span>Wiring <b>25 lines</b></span><span>Built in <b>2 h 10 min</b></span><span><b>about 64 Kiro credits</b></span></div>
+            <div class="foot"><span></span><a class="btn ghost" href="apps/shoo/" aria-label="Open Shoo!">Open</a></div>
+          </div>
+        </article>
+      </div>
+      <div class="case">
+        <div class="slide" aria-hidden="true">What it is</div>
+        <div>
+          <h3>Added to someone else's app</h3>
+          <p>A reveal.js slide deck: clap twice for the next slide, three times to go back.</p>
+          <small>reveal.js by Hakim El Hattab, MIT licence</small>
+        </div>
+        <div class="side"><span class="meta">Wiring <b>17 lines</b></span><a class="btn ghost" href="cases/slides/" aria-label="Open the slide deck">Open</a></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="build">
+    <div class="wrap">
+      <h2>Build your own in four steps.</h2>
+      <div class="steps">
+        <div><b>Use this template</b><span>Start a repository from Tokk on GitHub.</span></div>
+        <div><b>Teach your sounds</b><span>Record each sound 10 times on the teach page, or let users teach their own.</span></div>
+        <div><b>Map patterns to actions</b><span>A TypeScript object: pattern on the left, function on the right.</span></div>
+        <div><b>Test with a recording</b><span>Run a WAV through the same engine in Node and check the patterns.</span></div>
+      </div>
+      <div class="code">
+        <div>
+<pre tabindex="0"><span class="k">import</span> { listen } <span class="k">from</span> <span class="s">'tokk'</span>;
+
+<span class="k">const</span> ears = <span class="k">await</span> listen({
+  storageKey: <span class="s">'tokk:slides'</span>,
+  on: {
+    <span class="s">'clap clap'</span>: () =&gt; deck.next(),
+    <span class="s">'clap clap clap'</span>: () =&gt; deck.prev(),
+  },
+});
+<span class="c">// first run: the user teaches their own clap</span>
+<span class="k">if</span> (!ears.labels.includes(<span class="s">'clap'</span>)) <span class="k">await</span> ears.teach(<span class="s">'clap'</span>, { ui: <span class="k">true</span> });</pre>
+          <p class="cap">In the browser</p>
+        </div>
+        <div>
+<pre tabindex="0"><span class="k">import</span> { expectEvents } <span class="k">from</span> <span class="s">'tokk/node'</span>;
+
+<span class="k">await</span> expectEvents(<span class="s">'recordings/clap-x2.wav'</span>, [<span class="s">'clap'</span>, <span class="s">'clap'</span>], {
+  sounds,
+  patterns: [<span class="s">'clap clap'</span>, <span class="s">'clap clap clap'</span>],
+  matches: [<span class="s">'clap clap'</span>],
+});</pre>
+          <p class="cap">In a Node test</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="how">
+    <div class="wrap">
+      <h2>How it works</h2>
+      <div class="flow">
+        <span class="lane" aria-hidden="true"><i></i></span>
+        <div><b>Microphone</b><span>Opened after a click, on HTTPS.</span></div>
+        <div><b>AudioWorklet</b><span>Copies 20 ms chunks, nothing else.</span><span class="where">audio thread</span></div>
+        <div><b>Worker</b><span>Runs the engine off the main thread.</span><span class="where">worker</span></div>
+        <div><b>Segments</b><span>Finds where a sound starts and ends.</span></div>
+        <div><b>Features</b><span>Turns each sound into 32 numbers.</span></div>
+        <div><b>Nearest sounds</b><span>Names it, or says unknown.</span></div>
+        <div><b>Patterns</b><span>Calls your function.</span><span class="where">main thread</span></div>
+      </div>
+      <p class="rule">A pattern waits while a longer one can still match, then fires at once.</p>
+    </div>
+  </section>
+
+  <section class="sec" id="kiro">
+    <div class="wrap">
+      <h2>Built with Kiro.</h2>
+      <div class="kiro">
+        <div><b>Specs</b><span>Every part of Tokk and both apps started as a Kiro spec: requirements, design, tasks, tests first.</span><code>.kiro/specs/</code></div>
+        <div><b>Steering</b><span>Rules Kiro follows everywhere, like "audio never leaves the device".</span></div>
+        <div><b>Hooks</b><span>Property tests and a public-API check run on save.</span></div>
+        <div><b>Agents</b><span>An integrator agent wires Tokk into an app and writes its tests.</span></div>
+        <div><b>Power</b><span>MCP tools that let Kiro listen to a WAV, score it and see a spectrogram.</span><a href="https://github.com/subniin/tokk/blob/main/docs/kiro.md">How Kiro was used</a></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="privacy"><div class="wrap"><p>Audio stays on the device. Tokk keeps feature vectors, not recordings, and sends nothing to a server.</p></div></div>
+</main>
+
+<footer><div class="wrap"><span>Tokk. MIT licence.</span><nav aria-label="Footer"><a href="https://github.com/subniin/tokk">GitHub</a><a href="teach.html">Teach page</a></nav></div></footer>
+
+<script type="module" src="dist/landing.js"></script>
 </body>
 </html>

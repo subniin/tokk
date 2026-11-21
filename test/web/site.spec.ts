@@ -17,8 +17,16 @@ const SITE_PREFIX = '/tokk/';
 const SITE_BUILD_TIMEOUT_MS = 180_000;
 const SITE_TEST_TIMEOUT_MS = 60_000;
 const SITE_ELEMENT_TIMEOUT_MS = 15_000;
-// Task 26 (named update): the landing page also links cases/slides/, which the build below copies from the real cases/ folder.
-const LANDING_HREFS = ['teach.html', 'examples/hello/', 'apps/hands-free/', 'apps/knock-once/', 'cases/slides/'];
+// Task 35: the new landing page. The build below uses the fixture apps click-talk and shoo and the real cases/ folder (slides).
+const GITHUB = 'https://github.com/subniin/tokk';
+const LANDING_HREFS = ['#top', '#demo', '#apps', '#build', '#how', GITHUB, GITHUB, '#apps', 'apps/click-talk/', 'apps/shoo/', 'cases/slides/', `${GITHUB}/blob/main/docs/kiro.md`, GITHUB, 'teach.html'];
+const VIEWPORT_WIDTHS_PX = [320, 1280];
+// The demo box is also measured at widths where the layout changes (one column, two columns).
+const DEMO_WIDTHS_PX = [320, 480, 600, 901, 1000, 1280];
+const VIEWPORT_HEIGHT_PX = 900;
+// The demo box states (test hook), and the stage element that each one shows.
+const DEMO_STATES_SHOWN: [string, string][] = [['idle', '.s-idle'], ['teach', '.s-teach'], ['room', '.s-room'], ['live', '.s-live'], ['rec', '.s-live'], ['fail', '.s-fail']];
+const ALL_STATE_CLASSES = ['.s-idle', '.s-teach', '.s-room', '.s-live', '.s-fail'];
 
 let appsDir = '';
 let outDir = '';
@@ -57,20 +65,96 @@ function watch(page: Page): { requests: string[]; problems: string[]; check(): v
   return { requests, problems, check: () => expect(problems, `server saw: ${server.requests.join(', ')}`).toEqual([]) };
 }
 
-test('site: the landing page opens at /tokk/ and each of its four links opens a page', async ({ page }) => {
+test('site: the landing page opens at /tokk/, has every section, and each of its links opens a page', async ({ page }) => {
   test.setTimeout(SITE_TEST_TIMEOUT_MS);
   const seen = watch(page);
   const landing = `${server.url}${SITE_PREFIX}`;
   const response = await page.goto(landing);
   expect(response?.status()).toBe(200);
-  await expect(page.locator('h1')).toBeVisible({ timeout: SITE_ELEMENT_TIMEOUT_MS });
+  await expect(page.locator('h1')).toHaveText('Teach a web page a new sound.', { timeout: SITE_ELEMENT_TIMEOUT_MS });
+  for (const id of ['demo', 'apps', 'build', 'how', 'kiro']) await expect(page.locator(`#${id}`), id).toBeVisible();
+  for (const name of ['Two apps, one template.', 'Build your own in four steps.', 'How it works', 'Built with Kiro.']) {
+    await expect(page.getByRole('heading', { level: 2, name }), name).toBeVisible();
+  }
+  await expect(page.locator('.privacy')).toContainText('Audio stays on the device.');
+  await expect(page.locator('footer')).toContainText('MIT licence');
+  await expect(page.locator('article.app')).toHaveCount(2);
+  await expect(page.locator('pre')).toHaveCount(2);
   const hrefs = await page.locator('a').evaluateAll((els) => els.map((e) => e.getAttribute('href')));
   expect(hrefs).toEqual(LANDING_HREFS);
-  for (const href of LANDING_HREFS) {
-    const r = await page.goto(new URL(href as string, landing).href);
+  for (const href of new Set(hrefs.filter((h): h is string => h !== null && !h.startsWith('#') && !h.startsWith('https://')))) {
+    const r = await page.goto(new URL(href, landing).href);
     expect(r?.status(), href).toBe(200);
   }
-  expect(seen.requests.length).toBeGreaterThan(0);
+  expect(seen.requests.some((u) => u.endsWith(`${SITE_PREFIX}dist/landing.js`))).toBe(true);
+  expect(seen.requests.some((u) => u.endsWith(`${SITE_PREFIX}dist/landing.css`))).toBe(true);
+  seen.check();
+});
+
+for (const width of VIEWPORT_WIDTHS_PX) {
+  test(`site: the landing page has no horizontal scroll at ${width} px, in the light and the dark theme`, async ({ page }) => {
+    test.setTimeout(SITE_TEST_TIMEOUT_MS);
+    const seen = watch(page);
+    await page.setViewportSize({ width, height: VIEWPORT_HEIGHT_PX });
+    for (const scheme of ['light', 'dark'] as const) {
+      await page.emulateMedia({ colorScheme: scheme });
+      await page.goto(`${server.url}${SITE_PREFIX}`);
+      await expect(page.locator('h1')).toBeVisible({ timeout: SITE_ELEMENT_TIMEOUT_MS });
+      const widths = await page.evaluate(() => ({ scroll: document.documentElement.scrollWidth, client: document.documentElement.clientWidth }));
+      expect(widths.scroll, `${scheme} ${width}`).toBeLessThanOrEqual(widths.client);
+      const background = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
+      expect(background).toBe(scheme === 'light' ? 'rgb(246, 246, 243)' : 'rgb(17, 19, 21)');
+    }
+    seen.check();
+  });
+}
+
+for (const width of DEMO_WIDTHS_PX) {
+  test(`site: the demo box keeps its height and the title keeps its place in all six states at ${width} px`, async ({ page }) => {
+    test.setTimeout(SITE_TEST_TIMEOUT_MS);
+    const seen = watch(page);
+    await page.setViewportSize({ width, height: VIEWPORT_HEIGHT_PX });
+    await page.goto(`${server.url}${SITE_PREFIX}?test`);
+    await expect(page.locator('#demo[data-st="idle"]')).toBeVisible({ timeout: SITE_ELEMENT_TIMEOUT_MS });
+    // Run A: the idle state shows and its buttons do nothing.
+    await page.getByRole('button', { name: 'Turn on the microphone' }).click();
+    await page.getByRole('button', { name: 'Hear a recording' }).click();
+    await expect(page.locator('#demo')).toHaveAttribute('data-st', 'idle');
+    const measures: { state: string; box: number; title: number; width: number }[] = [];
+    for (const [state, shown] of DEMO_STATES_SHOWN) {
+      await page.evaluate((s) => window.dispatchEvent(new CustomEvent('tokk-demo-state', { detail: s })), state);
+      await expect(page.locator('#demo')).toHaveAttribute('data-st', state);
+      await expect(page.locator(shown), `${state} shows ${shown}`).toBeVisible();
+      for (const other of ALL_STATE_CLASSES.filter((c) => c !== shown && !(state === 'rec' && c === '.s-live'))) await expect(page.locator(other), `${state} hides ${other}`).toBeHidden();
+      await expect(page.locator('.rec-note')).toBeVisible({ visible: state === 'rec' });
+      const box = await page.locator('#demo').boundingBox();
+      // The position in the document, so a scroll caused by a click does not count.
+      const title = await page.evaluate(() => (document.querySelector('h1') as Element).getBoundingClientRect().top + window.scrollY);
+      measures.push({ state, box: box?.height ?? -1, title, width: box?.width ?? -1 });
+    }
+    expect(measures).toHaveLength(6);
+    expect(new Set(measures.map((m) => m.box)), JSON.stringify(measures)).toHaveProperty('size', 1);
+    expect(new Set(measures.map((m) => m.title)), JSON.stringify(measures)).toHaveProperty('size', 1);
+    expect(new Set(measures.map((m) => m.width))).toHaveProperty('size', 1);
+    expect(measures[0].box).toBeGreaterThan(0);
+    seen.check();
+  });
+}
+
+test('site: without ?test the state event is ignored, and with reduced motion nothing moves', async ({ page }) => {
+  test.setTimeout(SITE_TEST_TIMEOUT_MS);
+  const seen = watch(page);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto(`${server.url}${SITE_PREFIX}`);
+  await expect(page.locator('#demo[data-st="idle"]')).toBeVisible({ timeout: SITE_ELEMENT_TIMEOUT_MS });
+  await page.evaluate(() => window.dispatchEvent(new CustomEvent('tokk-demo-state', { detail: 'live' })));
+  await expect(page.locator('#demo')).toHaveAttribute('data-st', 'idle');
+  const names = await page.evaluate(() => [...document.querySelectorAll('.wave i, .flow .lane i')].map((e) => getComputedStyle(e).animationName));
+  expect(names.length).toBeGreaterThan(0);
+  expect(new Set(names)).toEqual(new Set(['none']));
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  const moving = await page.evaluate(() => getComputedStyle(document.querySelector('.wave i') as Element).animationName);
+  expect(moving).toBe('amp');
   seen.check();
 });
 

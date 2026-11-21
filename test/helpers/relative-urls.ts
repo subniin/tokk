@@ -4,6 +4,13 @@
 const BAD_SCHEME = /(?:^|[^a-z])(?:https?|wss?|file):/i;
 const URL_ATTRIBUTES = ['href', 'src', 'action', 'poster', 'srcset'];
 
+// Task 35: an <a href> to this repository on GitHub is the one external URL the site may hold.
+const GITHUB_REPOSITORY = 'https://github.com/subniin/tokk';
+export function isRepositoryLink(value: string): boolean {
+  const v = value.trim();
+  return v === GITHUB_REPOSITORY || (v.startsWith(GITHUB_REPOSITORY) && ['/', '#', '?'].includes(v[GITHUB_REPOSITORY.length]));
+}
+
 function isBadValue(value: string): boolean {
   const v = value.trim();
   return v.startsWith('/') || BAD_SCHEME.test(v);
@@ -21,7 +28,7 @@ export function scanHtml(text: string): string[] {
       if (URL_ATTRIBUTES.includes(name)) {
         const inline = /^(?:data|blob):/i.test(value.trim());
         if (inline && tag === 'script') found.push(`<${tag} ${name}="${value}"> (data: or blob: in a script)`);
-        else if (!inline && (name === 'srcset' ? value.split(',').some((part) => isBadValue(part.trim().split(/\s+/)[0] ?? '')) : isBadValue(value))) {
+        else if (!inline && !(tag === 'a' && name === 'href' && isRepositoryLink(value)) && (name === 'srcset' ? value.split(',').some((part) => isBadValue(part.trim().split(/\s+/)[0] ?? '')) : isBadValue(value))) {
           found.push(`<${tag} ${name}="${value}">`);
         }
       } else if (name === 'content' && /url\s*=/i.test(value) && isBadValue(value.slice(value.toLowerCase().indexOf('url=') + 4))) {

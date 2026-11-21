@@ -1,8 +1,8 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
-// The folders whose files are scanned (Task 21: apps, Task 26: cases). A missing folder is skipped.
-const SCANNED_DIRS = ['apps', 'cases'];
+// The folders whose files are scanned (Task 21: apps, Task 26: cases, Task 35: the site page). A missing folder is skipped.
+const SCANNED_DIRS = ['apps', 'cases', 'site-src'];
 const EXTENSIONS = ['.ts', '.tsx', '.js', '.mjs', '.html'];
 // Folders of this repository that an app must reach only through 'tokk' (Task 21: apps are bundled against web/index.ts).
 const INTERNAL_DIRS = ['core', 'web', 'node', 'tools'];

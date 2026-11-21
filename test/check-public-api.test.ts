@@ -161,3 +161,17 @@ describe('check-public-api and cases/ (Task 26, U2)', () => {
     expect(bad.output).toContain('cases/slides/index.html:2  ../../web/listen');
   }, CHILD_TIMEOUT_MS);
 });
+// Task 35: the landing page source is scanned like an app.
+describe('check-public-api and site-src/ (Task 35)', () => {
+  const SITE_MAIN = 'site-src/src/main.ts';
+
+  it('S35: an import of web/ or core/ in the page source fails, and imports of tokk and its own files pass', () => {
+    expect(run({ [SITE_MAIN]: "import { listen } from 'tokk';\nimport './constants';\n" }).status).toBe(0);
+    const bad = run(importing('../../web/listen', SITE_MAIN));
+    expect(bad.status).toBe(1);
+    expect(bad.output).toContain(`${SITE_MAIN}:2  ../../web/listen`);
+    expect(run(importing('../../core/x', SITE_MAIN)).status).toBe(1);
+    expect(run({ 'site-src/dist/landing.js': "import x from '../../web/listen';\n" }).status).toBe(0);
+    expect(run({}).output).toContain('no site-src/ folder');
+  }, CHILD_TIMEOUT_MS);
+});

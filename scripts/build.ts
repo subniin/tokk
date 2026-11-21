@@ -117,6 +117,9 @@ const MCP_OPTIONS: BuildOptions = {
 const APPS_DIR = join(ROOT, 'apps');
 const APP_NAME_RULE = /^[a-z0-9-]+$/;
 const TOKK_ALIAS_TARGET = join(ROOT, 'web', 'index.ts');
+// The landing page (Task 35): site-src/src/main.ts is built like an app. The site build writes it to site/dist/landing.js (and landing.css).
+// The dev server writes site-src/dist/landing.js and landing.css, so http://localhost:5173/site-src/index.html works like the built page.
+export const SITE_SRC_DIR = join(ROOT, 'site-src');
 // Cases (Task 26): cases/<name>/src/main.ts is built exactly like an app, to cases/<name>/dist/app.js. A case is a
 // third-party app with Tokk added, so it follows the same name rule, the same options and the same alias.
 export const CASES_DIR = join(ROOT, 'cases');
@@ -222,7 +225,11 @@ async function dev(): Promise<void> {
   const teachCtx = await context(TEACH_PAGE_OPTIONS);
   const appsHandle = await watchApps();
   const casesHandle = await watchApps(CASES_DIR, 'Case').catch(async (e: unknown) => { await appsHandle.dispose(); throw e; });
+  rmSync(join(SITE_SRC_DIR, 'dist'), { recursive: true, force: true });
+  const siteCtx = await context(appBuildOptions(SITE_SRC_DIR, { minify: false, outfile: join(SITE_SRC_DIR, 'dist', 'landing.js') }))
+    .catch(async (e: unknown) => { await casesHandle.dispose(); await appsHandle.dispose(); throw e; });
   const stop = async () => {
+    await siteCtx.dispose();
     await casesHandle.dispose();
     await appsHandle.dispose();
     await teachCtx.dispose();
@@ -233,10 +240,12 @@ async function dev(): Promise<void> {
   process.on('SIGTERM', stop);
   await ctx.rebuild();
   await teachCtx.rebuild();
+  await siteCtx.rebuild();
   await ctx.watch();
   await teachCtx.watch();
+  await siteCtx.watch();
   const { port } = await ctx.serve({ servedir: ROOT, host: DEV_SERVER_HOST, port: DEV_SERVER_PORT });
-  console.log(`Serving ${ROOT} at http://${DEV_SERVER_HOST}:${port}/ (dist/tokk.js, dist/teach-page.js and ${appsHandle.apps.length} app and ${casesHandle.apps.length} case bundle(s) are rebuilt on save; restart to add an app or a case). Press Ctrl+C to stop.`);
+  console.log(`Serving ${ROOT} at http://${DEV_SERVER_HOST}:${port}/ (dist/tokk.js, dist/teach-page.js, site-src/dist/landing.js and ${appsHandle.apps.length} app and ${casesHandle.apps.length} case bundle(s) are rebuilt on save; restart to add an app or a case). Press Ctrl+C to stop.`);
 }
 
 async function main(): Promise<void> {
