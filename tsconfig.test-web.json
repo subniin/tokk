@@ -1,7 +1,7 @@
-﻿{
+{
   "extends": "./tsconfig.web.json",
   "compilerOptions": {
     "types": ["node"]
   },
-  "include": ["web", "core", "node", "test/web", "test/web-unit", "test/helpers", "scripts/build.ts", "playwright.config.ts"]
+  "include": ["web", "core", "node", "test/web", "test/web-unit", "test/listen-errors.test.ts", "test/helpers", "scripts/build.ts", "playwright.config.ts"]
 }

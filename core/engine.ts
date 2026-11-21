@@ -34,6 +34,10 @@ export interface Engine {
   push(chunk: Float32Array): void;
   flush(): void;
   setMode(name: string): void;
+  // Feeds a sound event of the current engine time into the matcher and skips the classifier. onEvent gets the same event.
+  // Returns the matches it made at once. A longer pattern still held back fires later, from push(). Throws a RangeError
+  // for an empty label and for 'background'.
+  inject(label: string): MatchEvent[];
 }
 
 export interface RunResult {
@@ -162,6 +166,14 @@ export function createEngine(o: EngineOptions): Engine {
       matcher.setPatterns(Object.keys(modes[name]));
       handlers = modes[name];
       modeName = name;
+    },
+
+    inject(label: string): MatchEvent[] {
+      if (typeof label !== 'string' || label === '') throw new RangeError('inject(label): the label must be a non-empty string.');
+      if (label === BACKGROUND) throw new RangeError(`inject(label): "${BACKGROUND}" is not a sound that can be injected.`);
+      const out = feed({ kind: 'sound', label, t: now(), durationMs: 0, confidence: 1 });
+      dispatch(out);
+      return out;
     },
   };
 }

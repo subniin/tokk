@@ -120,3 +120,48 @@ test('stop() closes the microphone track, the context and the Worker, and no han
   await page.waitForTimeout(WEB_TEST_SETTLE_MS);
   expect((await callsOf(page)).length).toBe(callsAtStop);
 });
+
+test('stopping the microphone track calls onError once with kind mic-ended, and no handler runs after it', async ({ page }) => {
+  await instrument(page);
+  await page.goto(pageUrl('&onerror=1'));
+  await page.click('#start');
+  await page.waitForFunction(() => (window as unknown as { tokkTest: { ready: boolean } }).tokkTest.ready);
+
+  // Chrome fires no 'ended' event for a track.stop() made by the page itself (it does for an unplugged device), so the
+  // spec stops the fake microphone track and dispatches the event that the browser would send.
+  await page.evaluate(() => {
+    const record = (window as unknown as { __tokkInstr: { streams: MediaStream[] } }).__tokkInstr;
+    for (const track of record.streams.flatMap((s) => s.getAudioTracks())) {
+      track.stop();
+      track.dispatchEvent(new Event('ended'));
+    }
+  });
+  await page.waitForFunction(() => (window as unknown as { tokkTest: { errors: unknown[] } }).tokkTest.errors.length > 0);
+  const callsAtError = (await callsOf(page)).length;
+  await page.waitForTimeout(WEB_TEST_SETTLE_MS);
+  const errors = await page.evaluate(() => (window as unknown as { tokkTest: { errors: { kind: string; message: string }[] } }).tokkTest.errors);
+  expect(errors.length).toBe(1);
+  expect(errors[0].kind).toBe('mic-ended');
+  expect(errors[0].message).toContain('call listen() again');
+  expect((await callsOf(page)).length).toBe(callsAtError);
+  expect((await readInstrumentation(page)).contexts.every((c) => c.state === 'closed')).toBe(true);
+});
+
+test("source 'keys' opens no microphone, and ears.inject calls the handler", async ({ page }) => {
+  await instrument(page);
+  await page.goto(pageUrl('&source=keys&patterns=low%20low'));
+  await page.click('#start');
+  await page.waitForFunction(() => (window as unknown as { tokkTest: { ready: boolean } }).tokkTest.ready);
+  const instrumentation = await readInstrumentation(page);
+  expect(instrumentation.contexts).toEqual([]);
+  expect(instrumentation.tracks).toEqual([]);
+
+  await page.waitForTimeout(WEB_TEST_PAUSE_FOR_MS);   // the page timer runs the engine clock
+  await page.evaluate(() => {
+    const ears = (window as unknown as { tokkTest: { ears: { inject(label: string): void } } }).tokkTest.ears;
+    ears.inject('low');
+    ears.inject('low');
+  });
+  await waitForCalls(page, 1, WEB_TEST_WAIT_SLACK_MS);
+  expect((await callsOf(page)).map((c) => c.pattern)).toEqual(['low low']);
+});

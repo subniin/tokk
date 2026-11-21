@@ -7,6 +7,7 @@ export type { Segment, SoundEvent, SoundModel, Nearest, ClassifyResult, Classifi
 export { loadSounds } from './load-sounds';
 export { listen } from './listen';
 export type { Ears, Envelope, ListenOptions, TeachOptions } from './listen';
+export type { TokkError } from './errors';
 export type { EngineEvent } from '../core/engine';
 export type { TeachText } from './teach-ui/text';
 export type { TeachReport } from '../core/teach';

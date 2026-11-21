@@ -22,7 +22,7 @@
     const patterns = (params.get('patterns') ?? 'low,mid,high,ring').split(',');
 
     // The spec reads this object. It holds handler calls and the outcome of listen(), nothing else.
-    const state = { calls: [], ready: false, rejection: null, ears: null };
+    const state = { calls: [], errors: [], ready: false, rejection: null, ears: null };
     window.tokkTest = state;
 
     // Starts listen(). Called from the click handler (a user gesture) or from the spec without a click.
@@ -30,7 +30,7 @@
       try {
         const sounds = await loadSounds(modelUrl);
         const on = Object.fromEntries(patterns.map((name) => [name, (m) => state.calls.push({ pattern: name, t: m.t })]));
-        state.ears = await listen({ sounds, on, ...(params.has('debug') ? { debug: true } : {}), ...(source === undefined ? {} : { source }) });
+        state.ears = await listen({ sounds, on, ...(params.has('debug') ? { debug: true } : {}), ...(source === undefined ? {} : { source }), ...(params.has('onerror') ? { onError: (e) => state.errors.push({ kind: e.kind, message: e.message }) } : {}) });
         state.ready = true;
         return { ok: true };
       } catch (e) {

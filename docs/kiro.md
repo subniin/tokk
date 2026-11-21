@@ -116,3 +116,4 @@ The operator checked these pages on 2026-11-20:
 | `.kiro/specs/task-25-integration-doc/` | Task 25, `docs/integration.md` with the measured development values |
 | `.kiro/specs/task-26-slides-case/` | Task 26, the third case, a reveal.js slide deck (cases/slides) with sound control |
 | `.kiro/specs/task-30-expect-patterns/` | Task 30, `patterns` and `matches` in `expectEvents` |
+| `.kiro/specs/task-32-listen-errors-inject/` | Task 32, `onError`, `Engine.inject` / `Ears.inject` and `source: 'keys'` for `listen` |

@@ -1,7 +1,7 @@
 // Task 20, U16 (b): compile-time checks of the public types. test/public-api.test.ts runs tsc with
 // test/web-unit/tsconfig.public-api.json on this file (tsconfig.json has no DOM types). Nothing here runs.
 
-import type { Ears, EngineEvent, Envelope, ListenOptions, TeachOptions, TeachText } from '../../web/index';
+import type { Ears, EngineEvent, Envelope, ListenOptions, TeachOptions, TeachText, TokkError } from '../../web/index';
 
 type Equal<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
 type Expect<T extends true> = T;
@@ -23,4 +23,11 @@ export type PublicApiChecks = [
   Expect<Equal<Envelope['max'], Float32Array>>,
   Expect<Equal<Extract<EngineEvent, { kind: 'unknown' }>['kind'], 'unknown'>>,
   Expect<Equal<TeachText['title'], string | undefined>>,
+  // Task 32
+  Expect<IsOptional<ListenOptions, 'onError'>>,
+  Expect<Equal<NonNullable<ListenOptions['onError']>, (error: TokkError) => void>>,
+  Expect<Equal<TokkError['kind'], 'mic-ended' | 'worker' | 'audio-closed'>>,
+  Expect<Equal<TokkError extends Error ? true : false, true>>,
+  Expect<Equal<Ears['inject'], (label: string) => void>>,
+  Expect<Equal<Exclude<ListenOptions['source'], undefined>, string | MediaStream>>,
 ];

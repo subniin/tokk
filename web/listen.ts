@@ -4,11 +4,13 @@
 import { emptyModel } from '../core/classify/knn';
 import { createEngine } from '../core/engine';
 import type { EngineEvent, Handlers } from '../core/engine';
-import { MIN_EXAMPLES_PER_LABEL, RECOMMENDED_EXAMPLES_PER_LABEL, SAMPLE_RATE_MIN_HZ } from '../core/constants';
+import { BACKGROUND, MIN_EXAMPLES_PER_LABEL, RECOMMENDED_EXAMPLES_PER_LABEL, SAMPLE_RATE_MIN_HZ } from '../core/constants';
 import type { TeachReport } from '../core/teach';
 import type { SoundModel } from '../core/types';
 import { readWav } from '../core/wav';
-import { WEB_CHUNK_MS, WEB_ENVELOPE_RESOLUTION_MS, WEB_STORAGE_KEY_DEFAULT } from './constants';
+import { WEB_CHUNK_MS, WEB_ENVELOPE_RESOLUTION_MS, WEB_KEYS_MAX_CATCHUP_MS, WEB_KEYS_SAMPLE_RATE_HZ, WEB_STORAGE_KEY_DEFAULT } from './constants';
+import { KEYS_TEACH_MESSAGE, makeTokkError } from './errors';
+import type { TokkError, TokkErrorKind } from './errors';
 import { openMic } from './mic';
 import type { MicHandle } from './mic';
 import { checkModel, labelsOf } from './model';
@@ -46,7 +48,9 @@ export interface ListenOptions {
   modes?: Record<string, Handlers>;
   mode?: string;
   debug?: boolean;                      // true mounts the debug overlay (a panel with the waveform and the last results)
-  source?: string | MediaStream;        // a WAV URL, a MediaStream, or none for the microphone
+  // A WAV URL, a MediaStream, or none for the microphone. 'keys' means no microphone and no audio: a page timer pushes
+  // 20 ms of silence so the engine clock and the pattern timing run, and sounds come only from ears.inject().
+  source?: string | MediaStream;
   storageKey?: string;                  // localStorage key of the taught model, default 'tokk:sounds'
   // Every event the engine makes: each sound, each continuous pitch event of a hum, and each unknown sound with its
   // nearest example (nearest is on unknown events only). A segment classified as background makes no event.
@@ -54,6 +58,11 @@ export interface ListenOptions {
   // The envelope of the input, about every 20 ms. It is a summary (two numbers per 10 ms), Tokk sends it nowhere, and
   // the app's own code must not send it or store it either (privacy rule). An error in this callback is logged.
   onEnvelope?: (env: Envelope) => void;
+  // Called once when listening cannot go on: the microphone track ended (unplugged, taken by another program), the Worker
+  // failed, or the audio context was closed. After it, this Ears is finished, as after stop(): Tokk does not reconnect, the
+  // app calls listen() again. A context that is only suspended (a background tab) is not an error: Tokk tries resume() on
+  // the next pointerdown or keydown. An exception thrown in onError is logged, not rethrown. Without onError nothing changes.
+  onError?: (error: TokkError) => void;
 }
 
 export interface TeachOptions {
@@ -86,6 +95,10 @@ export interface Ears {
   teach(label: string, options?: TeachOptions): Promise<TeachReport>;
   exportSounds(): string;               // the current model as JSON text (feature vectors only)
   importSounds(json: string): void;
+  // Feeds one sound of this name into the pattern matcher at the current engine time, as if it had been heard. It skips
+  // the classifier, and onEvent gets it too. Ignored while paused. Throws a RangeError for an empty label and for
+  // 'background'. It is how a keyboard takes the same patterns as the microphone (source: 'keys').
+  inject(label: string): void;
 }
 
 type HandlerOptions = Pick<ListenOptions, 'on' | 'modes' | 'mode'>;
@@ -163,6 +176,69 @@ function createPacer(samples: Float32Array, sampleRate: number, send: (chunk: Fl
   };
 }
 
+// Sends 20 ms chunks of silence at the pace of the page clock, so the engine clock runs without a microphone. A late timer
+// sends every chunk that is due, up to WEB_KEYS_MAX_CATCHUP_MS, and the clock then restarts from there.
+function createKeysClock(sampleRate: number, send: (chunk: Float32Array) => void) {
+  const chunkSamples = msToSamples(WEB_CHUNK_MS, sampleRate);
+  let sent = 0;                   // chunks sent
+  let startedAtMs = 0;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let stopped = false;
+
+  const tick = (): void => {
+    timer = undefined;
+    let due = Math.floor((performance.now() - startedAtMs) / WEB_CHUNK_MS) - sent;
+    const maxDue = Math.floor(WEB_KEYS_MAX_CATCHUP_MS / WEB_CHUNK_MS);
+    if (due > maxDue) {
+      startedAtMs += (due - maxDue) * WEB_CHUNK_MS;
+      due = maxDue;
+    }
+    for (let i = 0; i < due; i++) send(new Float32Array(chunkSamples));
+    sent += due;
+    timer = setTimeout(tick, Math.max(0, (sent + 1) * WEB_CHUNK_MS - (performance.now() - startedAtMs)));
+  };
+
+  return {
+    start(): void {
+      if (stopped || timer !== undefined) return;
+      startedAtMs = performance.now() - sent * WEB_CHUNK_MS;   // continues where it stopped
+      tick();
+    },
+    pause(): void {
+      if (timer !== undefined) clearTimeout(timer);
+      timer = undefined;
+    },
+    stop(): void {
+      stopped = true;
+      if (timer !== undefined) clearTimeout(timer);
+      timer = undefined;
+    },
+  };
+}
+
+// Watches the microphone for onError: a track that ends and a context that closes. A context that is only suspended is not
+// an error: it gets a resume() on the next pointerdown or keydown. Returns the function that removes the listeners.
+function watchMic(mic: MicHandle, fail: (kind: TokkErrorKind) => void): () => void {
+  const tracks = mic.stream.getAudioTracks();
+  const onEnded = (): void => fail('mic-ended');
+  const onState = (): void => { if (mic.context.state === 'closed') fail('audio-closed'); };
+  const onGesture = (): void => {
+    const state = mic.context.state as string;
+    if (state === 'suspended' || state === 'interrupted') mic.context.resume().catch(() => undefined);
+  };
+  for (const track of tracks) track.addEventListener('ended', onEnded);
+  mic.context.addEventListener('statechange', onState);
+  const doc = typeof document === 'undefined' ? null : document;
+  doc?.addEventListener('pointerdown', onGesture);
+  doc?.addEventListener('keydown', onGesture);
+  return () => {
+    for (const track of tracks) track.removeEventListener('ended', onEnded);
+    mic.context.removeEventListener('statechange', onState);
+    doc?.removeEventListener('pointerdown', onGesture);
+    doc?.removeEventListener('keydown', onGesture);
+  };
+}
+
 function rethrowLater(e: unknown): void {
   setTimeout(() => { throw e; }, 0);
 }
@@ -206,7 +282,8 @@ export async function listen(options: ListenOptions): Promise<Ears> {
 
   throwawayEngine(opts, checkedModel(SAMPLE_RATE_MIN_HZ), SAMPLE_RATE_MIN_HZ);   // rejects before any microphone, fetch or Worker is used
 
-  const wav = typeof opts.source === 'string' ? await fetchWav(opts.source) : null;
+  const keys = opts.source === 'keys';
+  const wav = typeof opts.source === 'string' && !keys ? await fetchWav(opts.source) : null;
   if (wav) throwawayEngine(opts, checkedModel(wav.sampleRate), wav.sampleRate);
 
   let closed = false;
@@ -215,6 +292,8 @@ export async function listen(options: ListenOptions): Promise<Ears> {
   let mic: MicHandle | null = null;
   let worker: WorkerHandle | null = null;
   let pacer: ReturnType<typeof createPacer> | null = null;
+  let keysClock: ReturnType<typeof createKeysClock> | null = null;
+  let unwatch: (() => void) | null = null;   // removes the listeners of the error watch
   let stopping: Promise<void> | null = null;
   let overlay: OverlayHandle | null = null;
   let contextRate = 0;                       // sample rate of the microphone or the WAV, set at start
@@ -290,6 +369,16 @@ export async function listen(options: ListenOptions): Promise<Ears> {
     }
   };
 
+  // Ends this Ears as stop() does, then tells the app once. Only used when the app gave onError.
+  const fail = (kind: TokkErrorKind, detail?: string, cause?: unknown): void => {
+    if (closed || opts.onError === undefined) return;
+    closed = true;
+    abortTeach?.();
+    stopping = teardown();
+    stopping.catch(() => undefined);   // stop() still returns the same promise
+    try { opts.onError(makeTokkError(kind, detail, cause)); } catch (e) { console.error('tokk: onError error:', e); }
+  };
+
   const post = (msg: MainToWorker, transfer: Transferable[] = []): void => {
     (worker as WorkerHandle).worker.postMessage(msg, transfer);
   };
@@ -298,15 +387,18 @@ export async function listen(options: ListenOptions): Promise<Ears> {
     overlay?.destroy();
     overlay = null;
     pacer?.stop();
+    keysClock?.stop();
+    unwatch?.();
+    unwatch = null;
     await mic?.close();
     worker?.dispose();
   };
 
   try {
-    if (wav) {
+    if (wav || keys) {
       worker = createTokkWorker();
     } else {
-      mic = await openMic(opts.source instanceof MediaStream ? opts.source : undefined);
+      mic = await openMic(typeof opts.source === 'object' ? opts.source : undefined);
       worker = createTokkWorker();
     }
     const w = worker.worker;
@@ -315,9 +407,10 @@ export async function listen(options: ListenOptions): Promise<Ears> {
       const text = e.message || 'The Worker failed.';
       if (!settled) startupError = text;
       console.error(`tokk: Worker error: ${text}`);
+      if (settled) fail('worker', text, e);
     };
 
-    const sampleRate = wav ? wav.sampleRate : (mic as MicHandle).sampleRate;
+    const sampleRate = wav ? wav.sampleRate : mic ? mic.sampleRate : ((stored ?? given)?.sampleRate ?? WEB_KEYS_SAMPLE_RATE_HZ);
     contextRate = sampleRate;
     if (given === undefined) {
       // A first run: a stored first-run model is used only when it was taught at this rate.
@@ -338,9 +431,13 @@ export async function listen(options: ListenOptions): Promise<Ears> {
         () => post({ type: 'flush' }),
       );
       pacer.start();
+    } else {
+      keysClock = createKeysClock(sampleRate, (chunk) => post({ type: 'chunk', samples: chunk }, [chunk.buffer]));
+      keysClock.start();
     }
     if (startupError !== null) throw new Error(`The Worker failed to start: ${startupError}`);
     settled = true;
+    if (opts.onError !== undefined && mic) unwatch = watchMic(mic, fail);
   } catch (e) {
     closed = true;
     await teardown();
@@ -373,6 +470,7 @@ export async function listen(options: ListenOptions): Promise<Ears> {
   const abortError = (): DOMException => new DOMException('The teach dialog was cancelled.', 'AbortError');
 
   const teach = (label: string, topts?: TeachOptions): Promise<TeachReport> => {
+    if (keys) return Promise.reject(new Error(KEYS_TEACH_MESSAGE));
     const problem = validateLabel(label);
     if (problem !== null) return Promise.reject(new RangeError(`ears.teach(): ${problem}`));
     const examples = topts?.examples ?? RECOMMENDED_EXAMPLES_PER_LABEL;
@@ -477,6 +575,12 @@ export async function listen(options: ListenOptions): Promise<Ears> {
     teach,
     exportSounds: () => JSON.stringify(sounds),
     importSounds,
+    inject(label: string): void {
+      if (typeof label !== 'string' || label === '') throw new RangeError('ears.inject(): the label must be a non-empty string.');
+      if (label === BACKGROUND) throw new RangeError(`ears.inject(): "${BACKGROUND}" is not a sound that can be injected.`);
+      if (closed || paused || teaching) return;
+      post({ type: 'inject', label });
+    },
     setMode(name: string): void {
       throwawayEngine({ modes: Object.fromEntries(Object.keys(handlerSets).map((m) => [m, {}])), mode: Object.keys(handlerSets)[0] }, sounds, SAMPLE_RATE_MIN_HZ).setMode(name);
       if (closed) return;
@@ -488,6 +592,7 @@ export async function listen(options: ListenOptions): Promise<Ears> {
       paused = true;
       mic?.pause();
       pacer?.pause();
+      keysClock?.pause();
       pageTime.pause();
       withOverlay((o) => o.setState('paused'));
     },
@@ -497,6 +602,7 @@ export async function listen(options: ListenOptions): Promise<Ears> {
       pageTime.resume(performance.now());
       mic?.resume();
       pacer?.start();
+      keysClock?.start();
       withOverlay((o) => o.setState('listening'));
     },
     stop(): Promise<void> {

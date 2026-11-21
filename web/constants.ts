@@ -3,6 +3,8 @@
 export const WEB_CHUNK_MS = 20;                 // length of one chunk of samples sent to the Worker
 export const WEB_RESUME_TIMEOUT_MS = 500;       // how long openMic waits for AudioContext.resume()
 export const WEB_ENVELOPE_RESOLUTION_MS = 10;   // length of one envelope bin
+export const WEB_KEYS_SAMPLE_RATE_HZ = 16000;   // engine rate of source 'keys' when no model gives one (the lowest allowed rate)
+export const WEB_KEYS_MAX_CATCHUP_MS = 5000;    // longest stretch of silence sent at once after a late timer (a sleeping page)
 
 // Debug overlay (Task 15).
 export const WEB_OVERLAY_WINDOW_MS = 5000;                // length of the rolling waveform

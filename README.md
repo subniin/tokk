@@ -83,6 +83,22 @@ npm install
 npm run dev
 ```
 
+### 3.3 Errors and a keyboard fallback
+
+`onError` tells the app when listening ends (the microphone was unplugged, the Worker failed, the audio context closed). The `Ears` is then finished, so the app calls `listen()` again, for example from a Reconnect button. `source: 'keys'` runs without a microphone: `ears.inject(label)` feeds a sound into the same pattern rules, so a key press and a real sound behave alike.
+
+```ts
+const ears = await listen({
+  sounds,
+  on,
+  onError: (error) => showReconnectCard(error.kind, error.message),   // 'mic-ended' | 'worker' | 'audio-closed'
+});
+
+// No microphone (permission denied, no device): the same patterns, driven by keys.
+const keys = await listen({ sounds, on, source: 'keys' });
+addEventListener('keydown', (e) => { if (e.key === ' ') keys.inject('clap'); });
+```
+
 ## 4. Demo video
 
 Demo video: coming with the submission.

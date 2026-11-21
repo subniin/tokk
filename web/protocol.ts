@@ -32,6 +32,7 @@ export type MainToWorker =
   | { type: 'chunk'; samples: Float32Array }
   | { type: 'setMode'; name: string }
   | { type: 'flush' }
+  | { type: 'inject'; label: string }
   | { type: 'replaceSounds'; sounds: SoundModel }
   | { type: 'connect'; port: MessagePortLike }
   | { type: 'record-start'; label: string; kind: RecordKind }
@@ -226,6 +227,14 @@ function handle(state: WorkerState, msg: unknown): void {
       if (state.engine === null) throw new Error('Send init before flush.');
       if (state.recorder !== null) return;   // the end of a WAV source while a recording is open: the engine is not used
       state.engine.flush();
+      return;
+    }
+    case 'inject': {
+      if (state.recordOnly) throw new Error('inject is not available in a record-only Worker.');
+      if (state.engine === null) throw new Error('Send init before inject.');
+      if (typeof m.label !== 'string') throw new Error('inject needs a label.');
+      if (state.recorder !== null) return;   // a recording is open: the engine is not used
+      state.engine.inject(m.label);
       return;
     }
     case 'replaceSounds': {
