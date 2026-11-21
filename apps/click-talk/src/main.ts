@@ -21,10 +21,10 @@ import styleText from './style.css' with { type: 'text' };
 import { BACKGROUND_LINE, TEACH_LINE, TEACH_TITLE } from './teach-texts';
 import { backgroundMsFor } from './test-params';
 import {
-  byId, hideSpeaking, initStatic, isDialogOpen, keyBelongsToControl, keyInput, renderBoard, renderSounds, setListening, setSpeakNote,
+  byId, hideSpeaking, initStatic, isDialogOpen, keyBelongsToControl, keyInput, renderBoard, renderSounds, setListening, setSpeakNote, showIdle,
   showHeard, showHelp, showMic, showScreen, showSpeaking, whenDialogClosed,
 } from './view';
-import type { ScreenName } from './view';
+import type { ListeningState, ScreenName } from './view';
 
 // What the wiring calls on the glue.
 interface Glue {
@@ -83,6 +83,7 @@ const app = {
   noVoiceShown: false,        // "No offline voice" is shown once
   helpAtMs: 0,
   voices: [] as VoiceLike[],
+  waiting: false,             // a returning user with no click or key yet: Chrome keeps the audio suspended, so nothing is heard
 };
 const burst = { times: [] as number[], timer: undefined as Timer | undefined };
 const alarm = createAlarm();
@@ -115,16 +116,31 @@ function refresh(): void {
 function show(name: ScreenName): void {
   app.screen = name;
   showScreen(name);
+  showIdle(app.waiting && name === 'board');
+}
+
+// The status line: while the page waits for its first click or key, 'on' reads 'Not listening yet'.
+function listening(state: ListeningState): void {
+  setListening(app.waiting && state === 'on' ? 'idle' : state);
+}
+
+// The first pointerdown or keydown ends the wait. Returns true when it did, so the caller can ignore that key.
+function endWaiting(): boolean {
+  if (!app.waiting) return false;
+  app.waiting = false;
+  showIdle(false);
+  if (byId('live').dataset.state === 'idle') setListening('on');
+  return true;
 }
 
 // ---- Listening on and off: the microphone does not hear what the app plays ----
 function pauseEars(): void {
   port.pause();
-  setListening('paused');
+  listening('paused');
 }
 function resumeEars(): void {
   port.resume();
-  setListening(app.keysMode ? 'off' : 'on');
+  listening(app.keysMode ? 'off' : 'on');
 }
 
 // ---- One sound mode: the frame moves by itself ----
@@ -214,7 +230,7 @@ function openBoard(): void {
   app.board = INITIAL_BOARD;
   show('board');
   renderSounds(app.settings.mode, app.keysMode);
-  setListening(app.keysMode ? 'off' : 'on');
+  listening(app.keysMode ? 'off' : 'on');
   refresh();
   armScan();
 }
@@ -238,7 +254,7 @@ const glue: Glue = {
     // The Ears is finished. Keys keep working on a new Ears without a microphone, and the card offers to reconnect.
     app.keysMode = true;
     renderSounds(app.settings.mode, true);
-    setListening(busy() ? 'paused' : 'off');
+    listening(busy() ? 'paused' : 'off');
     syncData();
     refresh();
     void connect('keys', app.settings.mode, glue).then(() => { if (busy()) port.pause(); }).catch(() => undefined);
@@ -293,7 +309,7 @@ async function useKeys(): Promise<void> {
   showMic(null, false);
   if (app.screen === 'board' || app.screen === 'settings') {
     renderSounds(app.settings.mode, true);
-    setListening('off');
+    listening('off');
     refresh();
     armScan();
   } else {
@@ -312,7 +328,7 @@ async function reconnect(): Promise<void> {
   app.keysMode = false;
   showMic(null, false);
   renderSounds(app.settings.mode, false);
-  setListening(busy() ? 'paused' : 'on');
+  listening(busy() ? 'paused' : 'on');
   if (busy()) port.pause();
   refresh();
 }
@@ -365,6 +381,7 @@ const caregiverApi = {
 // ---- Keys ----
 function onKey(ev: KeyboardEvent): void {
   alarm.prime();
+  if (endWaiting()) return;                // the key that starts the listening does nothing else
   if (ev.repeat) return;
   const state = { mode: app.settings.mode, level: app.board.level };
   if (state.level === 'help') {
@@ -413,11 +430,12 @@ function init(): void {
   byId('mic-retry').addEventListener('click', () => { void (byId('mic').dataset.kind === 'lost' ? reconnect() : begin()); });
   byId('mic-keys').addEventListener('click', () => { void useKeys(); });
   byId('help').addEventListener('click', stopHelp);
-  document.addEventListener('pointerdown', () => alarm.prime());
+  document.addEventListener('pointerdown', () => { alarm.prime(); endWaiting(); });
   document.addEventListener('keydown', onKey);
 
   // A returning user (a stored model and stored settings) goes straight to the board.
   if (stored !== null && model !== null) {
+    app.waiting = navigator.userActivation?.hasBeenActive === false;
     openBoard();
     void begin();
   } else {

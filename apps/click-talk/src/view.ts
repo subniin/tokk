@@ -56,12 +56,19 @@ export function showScreen(name: ScreenName): void {
   else document.getElementById(target)?.focus();
 }
 
-export type ListeningState = 'on' | 'paused' | 'off';
-const LISTENING_TEXT: Record<ListeningState, string> = { on: 'Listening', paused: 'Paused while speaking', off: 'Not listening' };
+export type ListeningState = 'on' | 'paused' | 'off' | 'idle';
+const LISTENING_TEXT: Record<ListeningState, string> = { on: 'Listening', paused: 'Paused while speaking', off: 'Not listening', idle: 'Not listening yet' };
 export function setListening(state: ListeningState): void {
   byId('live').dataset.state = state;
   byId('live-text').textContent = LISTENING_TEXT[state];
   byId('app').dataset.listening = state;
+}
+
+export const IDLE_TEXT = 'Click anywhere or press a key once to start listening.';
+export function showIdle(on: boolean): void {
+  const e = byId('idle');
+  e.textContent = on ? IDLE_TEXT : '';
+  e.hidden = !on;
 }
 
 // ---- The board ----

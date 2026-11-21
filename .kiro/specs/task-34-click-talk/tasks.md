@@ -25,3 +25,7 @@ Test first. English only. Do not push or publish. Do not touch `docs/_planning/`
 - [x] 18. Run all checks of the plan (`npm test`, `npm run test:web` twice, tsc x3, `check:public-api`, `build:site`, `count:wiring`). Commit `feat: add Click Talk app`.
 
 Run B results: npm test 89 files, 1287 passed, 2 todo; pbt:quick 144 passed; test:web 109 passed, 1 skipped (the screenshot test), twice; wiring 27 lines.
+
+## Fix run
+- [x] 19. Fix after 76f3ec8: a returning user starts listening at page load, and Chrome keeps the audio suspended until the first key or click. While 
+avigator.userActivation.hasBeenActive is false the status reads Not listening yet and a banner above the sound bar says Click anywhere or press a key once to start listening. (scan-ring yellow on dark, fixed colours, AA in both themes). The first pointerdown or keydown removes it, and that key does nothing else. Browser test added to click-talk.spec.ts. Checks: npm test 89 files, 1287 passed, 2 todo; tsc x3; click-talk.spec.ts 20 passed, 1 skipped, three times; test:web 110 passed, 1 skipped; build and build:site.

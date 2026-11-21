@@ -336,6 +336,30 @@ test.describe('two-sound mode with the play stream', () => {
   test.beforeAll(async () => { browser = await chromium.launch({ channel: 'chrome', args: fakeMicArgs(FIXTURE_TALK_PLAY_WAV_PATH) }); });
   test.afterAll(async () => { await browser?.close(); });
 
+  test('a returning user with no click sees the banner and "Not listening yet"; one click removes it and the next click moves the frame', async ({ baseURL }) => {
+    const { page, seen, context } = await open(browser, baseURL, { mic: true, model: STORED, settings: settingsText() });
+    await page.goto(TALK_PAGE_URL);
+    await expectBoard(page, 'categories', 'needs', 0);
+    await page.waitForFunction(() => (window as unknown as MicWindow).__micStartMs !== undefined, undefined, { timeout: STEP_TIMEOUT_MS });
+    await expect(page.locator('#idle')).toBeVisible();
+    await expect(page.locator('#idle')).toHaveText('Click anywhere or press a key once to start listening.');
+    await expect(page.locator('#live-text')).toHaveText('Not listening yet');
+    await expect(app(page)).toHaveAttribute('data-listening', 'idle');
+    await expectContrast(page, 'the idle banner');
+
+    // One click, made once and then waited for: it removes the banner and does not move the frame.
+    await page.mouse.click(WINDOW_WIDTH_PX / 2, WINDOW_HEIGHT_PX / 2);
+    await expect(page.locator('#idle')).toBeHidden();
+    await expect(page.locator('#live-text')).toHaveText('Listening');
+    await expectBoard(page, 'categories', 'needs', 0);
+
+    // The next sound of the stream (a synthetic click) moves the frame.
+    await untilStream(page, TALK_PLAY.clickMs[0] + SETTLE_AFTER_SOUND_MS);
+    await expectBoard(page, 'categories', 'body', 0);
+    seen.check();
+    await context.close();
+  });
+
   test('click moves, pop chooses, the phrase is spoken, two pops choose once, three pops start help and a click stops it', async ({ baseURL }) => {
     const { page, seen, context } = await open(browser, baseURL, { mic: true, model: STORED, settings: settingsText() });
     let dialogSeen = false;

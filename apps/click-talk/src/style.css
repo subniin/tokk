@@ -236,3 +236,8 @@ main { min-height: 0; overflow-x: hidden; overflow-y: auto; }
   .demo .steps { grid-template-columns: 1fr; }
   .dialog { padding: 20px; }
 }
+
+/* returning user, no click yet: the browser keeps the audio suspended, so the board says it is deaf. Fixed colours: the scan-ring yellow on dark is AA in both themes. */
+.idle { padding: 12px 16px; background: #0e1214; color: #ffd23f; border-top: 4px solid #ffd23f; font-size: 1.25rem; font-weight: 700; text-align: center; }
+.idle[hidden] { display: none; }
+.live[data-state="idle"] i { background: #ffd23f; outline: 2px solid #12171a; }
