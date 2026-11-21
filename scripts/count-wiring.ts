@@ -112,6 +112,7 @@ export function collectGroups(root: string): WiringGroup[] {
       if (!entry.isDirectory()) continue;
       const start = join(baseDir, entry.name, sub);
       if (!existsSync(start)) continue;
+      if (kind === 'app' && !existsSync(join(start, 'main.ts'))) continue;   // no entry yet (apps/README.md): not an app, e.g. Shoo! after run A
       const found: string[] = [];
       walkFiles(start, extensions, found);
       if (found.length === 0) continue;
