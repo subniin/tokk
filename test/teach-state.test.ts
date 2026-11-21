@@ -5,7 +5,7 @@ import type { TeachReport } from '../core/teach';
 import type { SoundModel } from '../core/types';
 import { WEB_TEACH_BACKGROUND_RECORD_MS, WEB_TEACH_HUM_RECORD_MS, WEB_TEACH_PROGRESS_REDUCED_MOTION_MS } from '../web/constants';
 import { countLine, exampleLine, percentText, replaceLine, reportLines, savedLine, stepText } from '../web/teach-ui/format';
-import { doneState, initialState, keptCount, quietProgress, reduce, saveState, shouldUpdateProgress, validateLabel } from '../web/teach-ui/state';
+import { countdownSeconds, doneState, initialState, keptCount, quietProgress, reduce, saveState, shouldUpdateProgress, validateLabel } from '../web/teach-ui/state';
 import type { TeachAction, TeachState } from '../web/teach-ui/state';
 
 // Test-only values.
@@ -331,5 +331,47 @@ describe('teach text', () => {
       const texts = [...reportLines(rep, m), percentText(a), stepText(s), countLine(s), exampleLine(ex), savedLine(stored), doneState(s).reason, saveState(s).reason];
       for (const text of texts) expect(text).not.toMatch(/NaN|undefined|Infinity/);
     }));
+  });
+});
+
+// Task 32b: backgroundMs ends a background recording by itself.
+describe('teach state with backgroundMs', () => {
+  const FIXED_MS = 30000;
+  const fixed = (): TeachState => initialState({ label: BACKGROUND, target: TARGET, backgroundMs: FIXED_MS });
+  const at = (s: TeachState, ms: number): TeachState => reduce(s, { type: 'progress', t: ms / MS_PER_SECOND });
+
+  it('keeps Done off before the time is over, even after the 10 s minimum', () => {
+    for (const ms of [0, 1000, WEB_TEACH_BACKGROUND_RECORD_MS, FIXED_MS - 1]) {
+      const s = at(fixed(), ms);
+      expect(doneState(s).enabled).toBe(false);
+      expect(reduce(s, { type: 'done' }).finishing).toBe(false);
+    }
+  });
+
+  it('finishes at backgroundMs and not before', () => {
+    const s = at(fixed(), FIXED_MS);
+    expect(doneState(s).enabled).toBe(true);
+    expect(reduce(s, { type: 'done' }).finishing).toBe(true);
+  });
+
+  it('counts the remaining seconds down, rounded up, and never below 0', () => {
+    expect(countdownSeconds(fixed())).toBe(30);
+    expect(countdownSeconds(at(fixed(), 1))).toBe(30);
+    expect(countdownSeconds(at(fixed(), 1000))).toBe(29);
+    expect(countdownSeconds(at(fixed(), 29001))).toBe(1);
+    expect(countdownSeconds(at(fixed(), FIXED_MS))).toBe(0);
+    expect(countdownSeconds(at(fixed(), FIXED_MS + 500))).toBe(0);
+  });
+
+  it('is unchanged without backgroundMs, and ignored for other labels', () => {
+    const plain = initialState({ label: BACKGROUND, target: TARGET });
+    expect(countdownSeconds(plain)).toBeNull();
+    expect(doneState(at(plain, WEB_TEACH_BACKGROUND_RECORD_MS)).enabled).toBe(true);
+    expect(doneState(at(plain, WEB_TEACH_BACKGROUND_RECORD_MS - 1)).enabled).toBe(false);
+    for (const label of ['tap', HUM_LABEL]) {
+      const s = initialState({ label, target: TARGET, backgroundMs: FIXED_MS });
+      expect(countdownSeconds(s)).toBeNull();
+      expect(s).toEqual(initialState({ label, target: TARGET }));
+    }
   });
 });

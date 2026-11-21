@@ -8,7 +8,7 @@ import { BACKGROUND, MIN_EXAMPLES_PER_LABEL, RECOMMENDED_EXAMPLES_PER_LABEL, SAM
 import type { TeachReport } from '../core/teach';
 import type { SoundModel } from '../core/types';
 import { readWav } from '../core/wav';
-import { WEB_CHUNK_MS, WEB_ENVELOPE_RESOLUTION_MS, WEB_KEYS_MAX_CATCHUP_MS, WEB_KEYS_SAMPLE_RATE_HZ, WEB_STORAGE_KEY_DEFAULT } from './constants';
+import { WEB_CHUNK_MS, WEB_ENVELOPE_RESOLUTION_MS, WEB_KEYS_MAX_CATCHUP_MS, WEB_KEYS_SAMPLE_RATE_HZ, WEB_STORAGE_KEY_DEFAULT, WEB_TEACH_BACKGROUND_RECORD_MS, WEB_TEACH_MAX_RECORDING_MS } from './constants';
 import { KEYS_TEACH_MESSAGE, makeTokkError } from './errors';
 import type { TokkError, TokkErrorKind } from './errors';
 import { openMic } from './mic';
@@ -67,6 +67,7 @@ export interface ListenOptions {
 
 export interface TeachOptions {
   ui?: true;                            // this version teaches through the dialog only
+  backgroundMs?: number;                // only for the label 'background': the recording ends by itself after this time, 10000 to 120000 ms
   examples?: number;                    // how many sounds the dialog asks for, default 10, at least 5
   // Texts of the dialog in the app's voice, for this dialog only. Keys: title {label}, quiet, record {count}, recordHum,
   // recordBackground, training, count {heard} {target} {kept}, needMore {min} {kept}, review, failed, done, save,
@@ -477,6 +478,10 @@ export async function listen(options: ListenOptions): Promise<Ears> {
     if (!Number.isInteger(examples) || examples < MIN_EXAMPLES_PER_LABEL) {
       return Promise.reject(new RangeError(`ears.teach(): examples must be a whole number of at least ${MIN_EXAMPLES_PER_LABEL}, got ${String(examples)}.`));
     }
+    const backgroundMs = label === BACKGROUND ? topts?.backgroundMs : undefined;
+    if (backgroundMs !== undefined && (!Number.isFinite(backgroundMs) || backgroundMs < WEB_TEACH_BACKGROUND_RECORD_MS || backgroundMs > WEB_TEACH_MAX_RECORDING_MS)) {
+      return Promise.reject(new RangeError(`ears.teach(): backgroundMs must be a number from ${WEB_TEACH_BACKGROUND_RECORD_MS} to ${WEB_TEACH_MAX_RECORDING_MS} (ms), got ${String(backgroundMs)}.`));
+    }
     let texts: ResolvedTeachText;
     try {
       texts = resolveTeachText(topts?.text);
@@ -502,6 +507,7 @@ export async function listen(options: ListenOptions): Promise<Ears> {
         dialogHandle = mountTeachDialog({
           label,
           examples,
+          ...(backgroundMs === undefined ? {} : { backgroundMs }),
           model: sounds,
           text: texts,
           controller,

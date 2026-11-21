@@ -10,5 +10,5 @@
     "types": ["node"]
   },
   "include": ["core", "node", "tools", "scripts", "test", "vitest.config.ts"],
-  "exclude": ["test/web", "test/web-unit", "test/listen-errors.test.ts"]
+  "exclude": ["test/web", "test/web-unit", "test/listen-errors.test.ts", "test/teach-background-ms.test.ts"]
 }

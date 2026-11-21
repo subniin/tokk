@@ -16,6 +16,8 @@ export type PublicApiChecks = [
   Expect<Equal<Ears['labels'], string[]>>,
   Expect<Equal<Ears['toPageTime'], (t: number) => number>>,
   Expect<IsOptional<TeachOptions, 'text'>>,
+  Expect<IsOptional<TeachOptions, 'backgroundMs'>>,
+  Expect<Equal<NonNullable<TeachOptions['backgroundMs']>, number>>,
   Expect<Equal<NonNullable<TeachOptions['text']>, TeachText>>,
   Expect<Equal<Envelope['t0'], number>>,
   Expect<Equal<Envelope['binMs'], number>>,

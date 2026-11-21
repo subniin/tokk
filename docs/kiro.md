@@ -117,4 +117,5 @@ The operator checked these pages on 2026-11-20:
 | `.kiro/specs/task-26-slides-case/` | Task 26, the third case, a reveal.js slide deck (cases/slides) with sound control |
 | `.kiro/specs/task-30-expect-patterns/` | Task 30, `patterns` and `matches` in `expectEvents` |
 | `.kiro/specs/task-32-listen-errors-inject/` | Task 32, `onError`, `Engine.inject` / `Ears.inject` and `source: 'keys'` for `listen` |
+| `.kiro/specs/task-32b-background-length/` | Task 32b, `TeachOptions.backgroundMs`: a background recording of a set length that ends by itself |
 | `.kiro/specs/task-33-shoo/` | Task 33, Shoo! sound defense game (run A: rules and tests; run B: screen and wiring) |

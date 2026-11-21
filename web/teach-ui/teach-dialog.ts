@@ -12,7 +12,7 @@ import type { WaveformView } from '../overlay/waveform';
 import type { WorkerToMain } from '../protocol';
 import type { RecordKind } from '../record-kind';
 import { countLine, exampleLine, limitLine, replaceLine, reportLines, savedLine, savingLine, stepText } from './format';
-import { doneState, initialState, quietProgress, reduce, saveState, shouldUpdateProgress } from './state';
+import { countdownSeconds, doneState, initialState, quietProgress, reduce, saveState, shouldUpdateProgress } from './state';
 import type { TeachAction, TeachExample, TeachState } from './state';
 import { TEACH_DIALOG_STYLE } from './style';
 import { fillText, TEACH_TEXT_DEFAULTS } from './text';
@@ -32,6 +32,7 @@ export interface TeachController {
 export interface TeachDialogOptions {
   label: string;
   examples: number;                 // the number of sounds asked for
+  backgroundMs?: number;            // background only: the recording ends by itself after this time (already checked by teach())
   model: SoundModel;                // the current model: tells how many examples the label has now
   controller: TeachController;
   // Synchronous for listen(). A promise is for a page that writes files (Task 17): the saved screen says Saving...
@@ -114,7 +115,7 @@ function thumbnail(e: TeachExample, from: Element): HTMLCanvasElement {
 type View = 'live' | 'review' | 'saved';
 
 export function mountTeachDialog(o: TeachDialogOptions): TeachDialogHandle {
-  let state: TeachState = initialState({ label: o.label, target: o.examples });
+  let state: TeachState = initialState({ label: o.label, target: o.examples, backgroundMs: o.backgroundMs });
   const kind = state.kind;
   const texts = o.text ?? TEACH_TEXT_DEFAULTS;
   const previousFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -151,6 +152,7 @@ export function mountTeachDialog(o: TeachDialogOptions): TeachDialogHandle {
   let count: HTMLElement | null = null;
   let list: HTMLOListElement | null = null;
   let limit: HTMLElement | null = null;
+  let countdown: HTMLElement | null = null;
   let reason: HTMLElement | null = null;
   let doneButton: HTMLButtonElement | null = null;
   let saveButton: HTMLButtonElement | null = null;
@@ -171,7 +173,7 @@ export function mountTeachDialog(o: TeachDialogOptions): TeachDialogHandle {
     return r;
   };
 
-  const requiredMs = (): number => (kind === 'hum' ? WEB_TEACH_HUM_RECORD_MS : WEB_TEACH_BACKGROUND_RECORD_MS);
+  const requiredMs = (): number => state.fixedMs ?? (kind === 'hum' ? WEB_TEACH_HUM_RECORD_MS : WEB_TEACH_BACKGROUND_RECORD_MS);
 
   const buildLive = (): void => {
     const notice = o.existingLine !== undefined ? o.existingLine : replaceLine({ label: o.label, kind, model: o.model });
@@ -193,6 +195,13 @@ export function mountTeachDialog(o: TeachDialogOptions): TeachDialogHandle {
       list.setAttribute('aria-label', 'Examples heard');
       parts.push(count, list);
     }
+    countdown = null;
+    if (state.fixedMs !== null) {
+      countdown = el('p');
+      countdown.setAttribute('data-role', 'countdown');
+      countdown.setAttribute('aria-live', 'off');   // a spoken update every second would talk over the room noise
+      parts.push(countdown);
+    }
     limit = el('p', undefined, limitLine());
     limit.hidden = true;
     limit.setAttribute('data-role', 'limit');
@@ -201,6 +210,7 @@ export function mountTeachDialog(o: TeachDialogOptions): TeachDialogHandle {
     body.replaceChildren(...parts);
     doneButton = button('done', texts.done);
     doneButton.setAttribute('aria-describedby', REASON_ID);
+    doneButton.hidden = state.fixedMs !== null;   // backgroundMs: the recording ends by itself
     const cancel = button('cancel', texts.cancel);
     footer.replaceChildren(doneButton, cancel);
     saveButton = null;
@@ -295,6 +305,8 @@ export function mountTeachDialog(o: TeachDialogOptions): TeachDialogHandle {
       if (count !== null) setText(count, countLine(state, texts));
       syncList();
       if (limit !== null) limit.hidden = !state.limitReached;
+      const left = countdownSeconds(state);
+      if (countdown !== null && left !== null) setText(countdown, `${left} ${left === 1 ? 'second' : 'seconds'} left`);
       if (doneButton !== null && reason !== null) setGate(doneButton, reason, doneState(state, texts));
     } else if (view === 'review') {
       setText(status, state.error !== null ? texts.failed : texts.review);
@@ -352,7 +364,7 @@ export function mountTeachDialog(o: TeachDialogOptions): TeachDialogHandle {
     host.remove();
     items.clear();
     state = initialState({ label: o.label, target: o.examples });   // no example, thumbnail or model stays referenced
-    progress = count = list = limit = reason = doneButton = saveButton = closeButton = null;
+    progress = count = list = limit = countdown = reason = doneButton = saveButton = closeButton = null;
     body.replaceChildren();
     footer.replaceChildren();
     if (previousFocus?.isConnected) previousFocus.focus();
@@ -457,7 +469,10 @@ export function mountTeachDialog(o: TeachDialogOptions): TeachDialogHandle {
   const unsubscribe = o.controller.subscribe((m) => {
     if (destroyed) return;
     switch (m.type) {
-      case 'record-progress': apply({ type: 'progress', t: m.t }); return;
+      case 'record-progress':
+        apply({ type: 'progress', t: m.t });
+        if (state.fixedMs !== null && state.phase === 'recording' && doneState(state).enabled) onDone();   // backgroundMs is over
+        return;
       case 'record-segment': apply({ type: 'segment', id: m.id, t: m.t, durationMs: m.durationMs, min: m.min, max: m.max }); return;
       case 'record-limit': apply({ type: 'limit' }); return;
       case 'record-trained': apply({ type: 'trained', model: m.model, report: m.report }); return;

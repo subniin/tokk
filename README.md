@@ -99,6 +99,8 @@ const keys = await listen({ sounds, on, source: 'keys' });
 addEventListener('keydown', (e) => { if (e.key === ' ') keys.inject('clap'); });
 ```
 
+Teach option: `ears.teach('background', { ui: true, backgroundMs: 30000 })` shows a countdown, hides **Done** and ends the recording by itself after 10000 to 120000 ms; other labels ignore it.
+
 ## 4. Demo video
 
 Demo video: coming with the submission.

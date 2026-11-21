@@ -32,6 +32,7 @@ export interface TeachState {
   target: number;          // the number of examples asked for
   examples: TeachExample[];
   elapsedMs: number;       // from the last record-progress: t times 1000
+  fixedMs: number | null;  // backgroundMs: a background recording ends by itself at this time in ms, else null
   finishing: boolean;      // Done was pressed and the model is being trained
   limitReached: boolean;
   report: TeachReport | null;
@@ -55,10 +56,11 @@ export type TeachAction =
 
 export interface Gate { enabled: boolean; reason: string }
 
-export function initialState(o: { label: string; target: number }): TeachState {
+export function initialState(o: { label: string; target: number; backgroundMs?: number }): TeachState {
   const kind = kindOfLabel(o.label);
+  const fixedMs = kind === 'background' && o.backgroundMs !== undefined ? o.backgroundMs : null;
   return {
-    phase: kind === 'sound' ? 'quiet' : 'recording', kind, label: o.label, target: o.target, examples: [], elapsedMs: 0,
+    phase: kind === 'sound' ? 'quiet' : 'recording', kind, label: o.label, target: o.target, examples: [], elapsedMs: 0, fixedMs,
     finishing: false, limitReached: false, report: null, model: null, error: null, saveStored: null,
   };
 }
@@ -70,6 +72,12 @@ export function keptCount(s: TeachState): number {
 // The quiet step as a fraction of NOISE_FLOOR_WARMUP_MS, at most 1.
 export function quietProgress(s: TeachState): number {
   return Math.max(0, Math.min(1, s.elapsedMs / NOISE_FLOOR_WARMUP_MS));
+}
+
+// The seconds left of a background recording with backgroundMs, rounded up, 0 at the end. null without backgroundMs.
+export function countdownSeconds(s: TeachState): number | null {
+  if (s.fixedMs === null) return null;
+  return Math.max(0, Math.ceil((s.fixedMs - s.elapsedMs) / MS_PER_SECOND));
 }
 
 function requiredMs(kind: RecordKind): number {
@@ -93,12 +101,12 @@ export function doneState(s: TeachState, texts: ResolvedTeachText = TEACH_TEXT_D
       ? { enabled: true, reason: '' }
       : { enabled: false, reason: fillText(texts.needMore, { min: MIN_EXAMPLES_PER_LABEL, kept }) };
   }
-  const need = requiredMs(s.kind);
+  const need = s.fixedMs ?? requiredMs(s.kind);
   if (s.elapsedMs >= need) return { enabled: true, reason: '' };
   const left = secondsLeftText(need - s.elapsedMs);
   return {
     enabled: false,
-    reason: s.kind === 'hum' ? `Keep humming for ${left}.` : `Let the room make its usual noise for ${left}.`,
+    reason: s.fixedMs !== null ? 'The recording ends by itself when the countdown is over.' : s.kind === 'hum' ? `Keep humming for ${left}.` : `Let the room make its usual noise for ${left}.`,
   };
 }
 
@@ -150,7 +158,7 @@ export function reduce(s: TeachState, a: TeachAction): TeachState {
     case 'save':
       return saveState(s).enabled ? { ...s, phase: 'saved' } : s;
     case 'again':
-      return s.phase === 'review' ? initialState({ label: s.label, target: s.target }) : s;
+      return s.phase === 'review' ? initialState({ label: s.label, target: s.target, ...(s.fixedMs === null ? {} : { backgroundMs: s.fixedMs }) }) : s;
     case 'cancel':
       return s.phase === 'saved' || s.phase === 'cancelled' ? s : { ...s, phase: 'cancelled' };
     case 'stored':

@@ -22,6 +22,7 @@ const WEB_TEST_PAGE_BODY_FONT_SIZE = '27px';
 const WEB_TEST_PAGE_BODY_COLOUR = 'rgb(255, 0, 0)';
 const WEB_TEST_TEACH_TIMEOUT_MS = 90_000;
 const WEB_TEST_TRAINING_WAIT_MS = 30_000;
+const WEB_TEST_BACKGROUND_MS = 10_000;            // the shortest backgroundMs the template allows
 const WEB_TEST_BEFORE_EXAMPLES_MIN = 3;
 const WEB_TEST_BASE_LABELS = ['low', 'mid'];
 const WEB_TEST_FULL_LABELS = ['high', 'low', 'mid', 'ring'];
@@ -216,6 +217,22 @@ test.describe('with the fake microphone playing a file with too few sounds', () 
     await page.click(action('cancel'));
     expect((await waitForOutcome(page)).name).toBe('AbortError');
   });
+
+  test('background with backgroundMs counts down, hides Done and ends by itself', async ({ micPage: page }) => {
+    await open(page, { storageKey: uniqueKey() });
+    await page.evaluate((ms) => (window as unknown as TestWindow).tokkTest.teachStart('background', { ui: true, backgroundMs: ms }), WEB_TEST_BACKGROUND_MS);
+    await expect(page.locator(HOST)).toHaveCount(1);
+    const countdown = page.locator(`${HOST} [data-role="countdown"]`);
+    await expect(countdown).toBeVisible();
+    await expect(page.locator(action('done'))).toBeHidden();
+    await expect(countdown).toHaveText(/^(10|[1-9]) seconds? left$/);
+    await expect(page.locator(action('cancel'))).toBeVisible();
+    // No click on Done: the recording trains and reviews on its own.
+    await expect(page.locator(action('save'))).toBeVisible({ timeout: WEB_TEST_BACKGROUND_MS + WEB_TEST_TRAINING_WAIT_MS });
+    await expect(page.locator(action('done'))).toHaveCount(0);
+    await page.click(action('cancel'));
+    expect((await waitForOutcome(page)).name).toBe('AbortError');
+  });
 });
 
 test.describe('with a WAV file as the source', () => {
@@ -356,6 +373,8 @@ test.describe('with a WAV file as the source', () => {
     const call = (label: string, options: unknown) => page.evaluate(([l, o]) => (window as unknown as TestWindow).tokkTest.teachOutcome(l as string, o), [label, options] as const);
     expect(await call('Tap!', { ui: true })).toMatchObject({ ok: false, name: 'RangeError', message: expect.stringContaining('^[a-z][a-z0-9-]{0,31}$') });
     expect(await call('tap', { ui: true, examples: 4 })).toMatchObject({ ok: false, name: 'RangeError', message: expect.stringContaining('5') });
+    expect(await call('background', { ui: true, backgroundMs: 5000 })).toMatchObject({ ok: false, name: 'RangeError', message: expect.stringContaining('120000') });
+    expect(await call('background', { ui: true, backgroundMs: 200000 })).toMatchObject({ ok: false, name: 'RangeError', message: expect.stringContaining('10000') });
     expect(await call('tap', {})).toMatchObject({ ok: false, name: 'Error', message: expect.stringContaining('{ ui: true }') });
     await expect(page.locator(HOST)).toHaveCount(0);
 
