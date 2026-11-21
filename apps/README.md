@@ -1,6 +1,6 @@
 # Apps
 
-Each app is a small web page that uses Tokk. The two apps of plan 3 are `hands-free` and `knock-once`. The folder rules:
+Each app is a small web page that uses Tokk. The two apps of plan 3 are `hands-free` and `knock-once`. Plan 5 adds `shoo` (a game; its page imports its style sheet as text with `with { type: 'text' }`). The folder rules:
 
 - There is one folder per app, `apps/<name>/`. The name uses lowercase letters, digits and hyphens only, so it is safe in a URL.
 - The entry is `src/main.ts`. The build bundles it to `apps/<name>/dist/app.js`.

@@ -13,11 +13,11 @@ Test first. English only. Do not push or publish. Do not touch `docs/_planning/`
 - [x] 8. Run `npm test`, `npm run pbt:quick`, the three type checks and `npm run check:public-api`.
 - [x] 9. Commit with `feat: add Shoo! game rules`.
 
-## Run B: screen, audio, wiring, browser tests (not done)
-- [ ] 10. `apps/shoo/index.html`, `src/style.css` and `src/view.ts` from the approved mockup, with the four-step hit effect from `Hit` and the reduced-motion rule.
-- [ ] 11. `src/audio.ts`: generated effects, `ears.pause()` and `ears.resume()` around them.
-- [ ] 12. `src/main.ts` with the tokk block (requirement 18), the mic card, keys mode, the `modeFor` switch.
-- [ ] 13. `test/web/shoo.spec.ts` and `test/web/shoo-fixture.ts`: first run, a full wave, a missed monster, boss rhythm, game over and again, `keys-only`, `mic-lost`, `returning`, widths 320 and 1280 px.
-- [ ] 14. Tune counts, speeds and spawn intervals by play; record them in `design.md`.
-- [ ] 15. Link the app from `site-src/index.html`; update `docs/integration.md` and the README wiring counts from `npm run count:wiring`.
-- [ ] 16. Run all checks of the plan (`npm test`, `npm run test:web` twice, tsc x3, `check:public-api`, `build:site`, `count:wiring`). Commit `feat: add Shoo! sound defense game`.
+## Run B: screen, audio, wiring, browser tests
+- [x] 10. `apps/shoo/index.html`, `src/style.css` and `src/view.ts` from the approved mockup, with the four-step hit effect from `Hit` and the reduced-motion rule.
+- [x] 11. `src/audio.ts`: generated effects, `ears.pause()` and `ears.resume()` around them.
+- [x] 12. `src/main.ts` with the tokk block (requirement 18), the mic card, keys mode, the `modeFor` switch.
+- [x] 13. `test/web/shoo.spec.ts` and `test/web/shoo-fixture.ts`: first run, a full wave, a missed monster, boss rhythm, game over and again, `keys-only`, `mic-lost`, `returning`, widths 320 and 1280 px.
+- [x] 14. Tune counts, speeds and spawn intervals by play; record them in `design.md`. Nobody could play in this run: the start values stay and design.md says so. Tuning by play is open.
+- [x] 15. (The link from `site-src/index.html` was not made: the task forbids touching it.) Update `docs/integration.md` and the README wiring counts from `npm run count:wiring`.
+- [x] 16. Run all checks of the plan (`npm test`, `npm run test:web` twice, tsc x3, `check:public-api`, `build:site`, `count:wiring`). Commit `feat: add Shoo! sound defense game`.

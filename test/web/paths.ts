@@ -58,3 +58,10 @@ export function fakeMicArgs(wavPath: string): string[] {
     '--autoplay-policy=user-gesture-required',
   ];
 }
+
+// Task 33: Shoo!
+export const FIXTURE_SHOO_FIRST_WAV_PATH = resolve(GENERATED_DIR, 'shoo-first.wav');
+export const FIXTURE_SHOO_PLAY_WAV_PATH = resolve(GENERATED_DIR, 'shoo-play.wav');
+export const FIXTURE_SHOO_TIMES_PATH = resolve(GENERATED_DIR, 'shoo-times.json');
+export const FIXTURE_SHOO_STORED_PATH = resolve(GENERATED_DIR, 'shoo-stored.json');   // the localStorage text of a returning player
+export const SHOO_PAGE_URL = '/apps/shoo/index.html';
