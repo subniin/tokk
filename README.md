@@ -9,13 +9,13 @@ This section says what works and what has not been checked.
 What works in this repository:
 
 - The core engine, the browser layer, the Node tools and the MCP server run from source. `npm test` runs the unit and property tests.
-- Four apps (Hands-Free, Knock Once for Yes, Shoo!, Click Talk) and a case (a reveal.js slide deck) use Tokk through the public API only.
+- Two apps (Click Talk and Shoo!) and a case (a reveal.js slide deck) use Tokk through the public API only. They replaced the first two apps on 2026-11-22.
 - `teach.html` records a sound 10 times and writes WAV files and a `sounds.json` of feature vectors.
 
 What has not been checked:
 
 - All recognition tests use **synthetic sounds** (made by `core/synth`) and Chrome's fake microphone. They show the logic and the wiring, not how well Tokk hears a real mouth, hand or table.
-- The real-microphone checks are pending. Teaching time, wrong clicks and accuracy of real sounds are not measured yet (see section 5.2).
+- The real-microphone checks are pending. Teaching time, wrong choices while talking and accuracy of real sounds are not measured yet (see section 5.2).
 - The demo video is pending.
 - The GitHub Pages site is not deployed yet. It will be at https://subniin.github.io/tokk/.
 - The npm package `tokk` is not published yet. Everything that needs the package (the CDN import map, `npx tokk-mcp`) works after publish.
@@ -105,14 +105,12 @@ Teach option: `ears.teach('background', { ui: true, backgroundMs: 30000 })` show
 
 Demo video: coming with the submission.
 
-## 5. Two apps and a third case
+## 5. Two apps and a slides case
 
 ### 5.1 The cases
 
 | Case | Screenshot | Sounds | Wiring lines | Time | Kiro credits |
 |---|---|---|---|---|---|
-| [Hands-Free](apps/hands-free/) (browse a page with mouth sounds) | [png](docs/images/hands-free.png) | tongue click, hum, `background` | 17 | 1 h 24 min | about 135 |
-| [Knock Once for Yes](apps/knock-once/) (answer a ghost by knocking) | [png](docs/images/knock-once.png) | knock | 19 | 1 h 57 min | about 84 |
 | [Shoo!](apps/shoo/) (a sound defense game: each monster runs from one sound) | [png](docs/images/shoo.png) | click, clap, knock, pop, `background` (synthetic sounds for the Node tests; the player teaches real ones on the first run) | 25 | 2 h 10 min | about 63.9 |
 | [Click Talk](apps/click-talk/) (a communication board: a tongue click moves, a lip pop chooses, the laptop speaks) | [png](docs/images/click-talk.png) | click, pop, `background` (synthetic sounds for the Node tests; the caregiver teaches real ones on the first run) | 27 | 1 h 32 min | about 56.0 |
 | [Slide deck](cases/slides/) (reveal.js, clap twice for the next slide) | [png](docs/images/slides.png) | clap (synthetic claps for the Node tests; the user teaches real claps on the first run) | 17 | 1 h 50 min | about 42.7 |
@@ -120,6 +118,7 @@ Demo video: coming with the submission.
 Conditions, from [docs/integration.md](docs/integration.md):
 
 - Time is Kiro wall-clock time, from the Kiro run that wrote the spec to the commit whose tests met the completion criteria. There was no manual coding.
+- For Shoo!, the time and credits leave out task 32b, a template option it needed (see docs/integration.md).
 - For the slide deck, the time is stage 2 only: sound control added to an existing reveal.js deck. The baseline deck is not counted.
 - Credits are the Kiro credits of those runs. The times do not include any check with a real microphone.
 - Wiring lines are the lines between `// tokk:start` and `// tokk:end`, counted by `npm run count:wiring`.
@@ -128,14 +127,12 @@ Conditions, from [docs/integration.md](docs/integration.md):
 
 | Group | Wiring lines | Conditions and source |
 |---|---|---|
-| `apps/hands-free` | 17 | `npm run count:wiring`, same as docs/integration.md |
-| `apps/knock-once` | 19 | `npm run count:wiring`, same as docs/integration.md |
 | `apps/click-talk` | 27 | `npm run count:wiring`, same as docs/integration.md |
 | `apps/shoo` | 25 | `npm run count:wiring`, same as docs/integration.md |
 | `cases/slides` | 17 | `npm run count:wiring`. The agent wrote 12 non-blank lines, the caption added the rest |
 | `examples/hello` | 7 | `npm run count:wiring` |
 
-Not measured yet, because each needs a real microphone and a person: the time to teach a new sound, three articles read hands-free, wrong clicks while talking, a whole game by knocking, one knock against two knocks, and the double clap in the deck. The method and the target of each check are in [docs/integration.md](docs/integration.md).
+Not measured yet, because each needs a real microphone and a person: the time to teach a new sound, the first-run setup of Click Talk, wrong choices while talking, Shoo! played to dawn with real sounds, sound mix-ups in wave 4 of Shoo!, and the double clap in the deck. The method and the target of each check are in [docs/integration.md](docs/integration.md).
 
 ### 5.3 Credit
 
@@ -173,7 +170,7 @@ core/             # pure TypeScript: segmenter, features, classifier, grammar, e
 web/              # browser: microphone, AudioWorklet, Worker, listen(), teach dialog, overlay
 node/             # Node: teachFromDir, expectEvents, scoring, WAV files
 tools/mcp-ears/   # MCP server with the tools teach, listen, score, spectrogram
-apps/             # Hands-Free, Knock Once for Yes, Shoo! and Click Talk, one folder per app
+apps/             # Click Talk and Shoo!, one folder per app
 cases/            # the slide deck case (reveal.js with sound control)
 examples/         # the hello example and its synthetic model
 .kiro/            # specs, steering, hooks, agents, MCP settings
@@ -267,7 +264,7 @@ The MCP server has four tools: `teach`, `listen`, `score` and `spectrogram`. In 
 
 ## 10. Kiro
 
-Kiro wrote the apps and the third case from specs. The repository uses these Kiro features:
+Kiro wrote the apps and the slides case from specs. The repository uses these Kiro features:
 
 - **Specs**: one folder per task in `.kiro/specs/`, with requirements, design and tasks. `_new-app` is the template for another project.
 - **Steering**: layer, privacy, unit, UI and Web Audio rules in `.kiro/steering/`.

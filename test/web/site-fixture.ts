@@ -23,7 +23,7 @@ import { readWavFile, writeWavFile } from '../../node/files';
 import { makeSignal } from '../helpers/engine-fixture';
 import type { Hit } from '../helpers/engine-fixture';
 import { CLAP_CLASS, CLAP_GAIN_DB, CLAP_PATTERN_GAP_MS, CLAP_SAMPLE_RATE_HZ } from '../helpers/slides-claps';
-import { speechLikeNoise } from './hands-free-fixture';
+import { speechLikeNoise } from './speech-noise';
 import { checkTeachSegments, WEB_TEST_IMPACT_SPACING_MS, WEB_TEST_TEACH_LEAD_MS } from './fixture';
 import { storedEntry } from './shoo-fixture';
 import { FIXTURE_SITE_FIRST_WAV_PATH, FIXTURE_SITE_PLAY_WAV_PATH, FIXTURE_SITE_STORED_PATH, FIXTURE_SITE_TIMES_PATH } from './paths';

@@ -28,7 +28,7 @@ import { makeSignal } from '../helpers/engine-fixture';
 import type { Hit } from '../helpers/engine-fixture';
 import { TALK_BEAT_MS, TALK_CLASS } from '../helpers/click-talk-sounds';
 import type { TalkSound } from '../helpers/click-talk-sounds';
-import { speechLikeNoise } from './hands-free-fixture';
+import { speechLikeNoise } from './speech-noise';
 import { checkTeachSegments, WEB_TEST_GAIN_DB, WEB_TEST_IMPACT_SPACING_MS, WEB_TEST_SAMPLE_RATE_HZ, WEB_TEST_TEACH_COPIES, WEB_TEST_TEACH_LEAD_MS } from './fixture';
 import { FIXTURE_TALK_FIRST_WAV_PATH, FIXTURE_TALK_ONE_WAV_PATH, FIXTURE_TALK_PLAY_WAV_PATH, FIXTURE_TALK_STORED_PATH, FIXTURE_TALK_TIMES_PATH } from './paths';
 import { storedEntry } from './shoo-fixture';

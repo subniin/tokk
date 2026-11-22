@@ -30,9 +30,18 @@ Each task has a spec folder with three files: requirements, design and tasks. Th
 | `.kiro/specs/task-19-hello/` | Task 19, hello example, README and package metadata |
 | `.kiro/specs/task-20-app-support/` | Task 20, first run without sounds, event hooks, `toPageTime` and dialog theming |
 | `.kiro/specs/task-21-site/` | Task 21, app bundles, static site and wiring line count |
-| `.kiro/specs/task-22-hands-free/` | Task 22, the Hands-Free app (apps/hands-free) |
-| `.kiro/specs/task-23-knock-once/` | Task 23, the Knock Once for Yes app (apps/knock-once) and the Hands-Free "Heard:" fix |
+| `.kiro/specs/task-22-hands-free/` | Task 22, the Hands-Free app (apps/hands-free), removed in task 36 |
+| `.kiro/specs/task-23-knock-once/` | Task 23, the Knock Once for Yes app (apps/knock-once) and the Hands-Free "Heard:" fix, removed in task 36 |
+| `.kiro/specs/task-25-integration-doc/` | Task 25, `docs/integration.md` with the measured development values |
+| `.kiro/specs/task-26-slides-case/` | Task 26, the third case, a reveal.js slide deck (cases/slides) with sound control |
 | `.kiro/specs/task-27-readme/` | Task 27, the README for the template and the three cases |
+| `.kiro/specs/task-30-expect-patterns/` | Task 30, `patterns` and `matches` in `expectEvents` |
+| `.kiro/specs/task-32-listen-errors-inject/` | Task 32, `onError`, `Engine.inject` / `Ears.inject` and `source: 'keys'` for `listen` |
+| `.kiro/specs/task-32b-background-length/` | Task 32b, `TeachOptions.backgroundMs`: a background recording of a set length that ends by itself |
+| `.kiro/specs/task-33-shoo/` | Task 33, Shoo! sound defense game (run A: rules and tests; run B: screen and wiring) |
+| `.kiro/specs/task-34-click-talk/` | Task 34, Click Talk two-sound communication board (run A: rules and tests; run B: screen, speech, alarm and wiring) |
+| `.kiro/specs/task-35-site/` | Task 35, the new site page (run A: build, page and demo box layout; run B: demo box behaviour) |
+| `.kiro/specs/task-36-replace-apps/` | Task 36, remove the first two apps (Hands-Free, Knock Once for Yes) and update the documents |
 | `.kiro/specs/_new-app/` | Template: fill one table, Kiro writes the spec |
 
 ## Hooks
@@ -51,7 +60,6 @@ Files in `.kiro/steering/`:
 
 | Path | What it holds |
 |---|---|
-| `.kiro/steering/halloween-ui.md` | Halloween look, story voice, captions, motion, contrast and effects of app 2, loaded only for `apps/knock-once/**` |
 | `.kiro/steering/integrate.md` | How to integrate sound control into an app: order of work, browser API, mistakes, rules |
 | `.kiro/steering/layers.md` | Which layer may import which |
 | `.kiro/steering/privacy.md` | Privacy rules |
@@ -113,11 +121,3 @@ The operator checked these pages on 2026-11-20:
 | https://kiro.dev/blog/powers-supports-plugins/ | Agent Plugins format for powers |
 | https://kiro.dev/docs/custom-agents/configuration-reference/ | Agent fields |
 | https://kiro.dev/docs/permissions/ | Permission rules |
-| `.kiro/specs/task-25-integration-doc/` | Task 25, `docs/integration.md` with the measured development values |
-| `.kiro/specs/task-26-slides-case/` | Task 26, the third case, a reveal.js slide deck (cases/slides) with sound control |
-| `.kiro/specs/task-30-expect-patterns/` | Task 30, `patterns` and `matches` in `expectEvents` |
-| `.kiro/specs/task-32-listen-errors-inject/` | Task 32, `onError`, `Engine.inject` / `Ears.inject` and `source: 'keys'` for `listen` |
-| `.kiro/specs/task-32b-background-length/` | Task 32b, `TeachOptions.backgroundMs`: a background recording of a set length that ends by itself |
-| `.kiro/specs/task-33-shoo/` | Task 33, Shoo! sound defense game (run A: rules and tests; run B: screen and wiring) |
-| `.kiro/specs/task-34-click-talk/` | Task 34, Click Talk two-sound communication board (run A: rules and tests; run B: screen, speech, alarm and wiring) |
-| `.kiro/specs/task-35-site/` | Task 35, the new site page (run A: build, page and demo box layout; run B: demo box behaviour) |

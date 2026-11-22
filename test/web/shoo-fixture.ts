@@ -29,7 +29,7 @@ import { firstRunBase } from '../../web/teach-ui/storage';
 import { makeSignal } from '../helpers/engine-fixture';
 import type { Hit, ImpactName } from '../helpers/engine-fixture';
 import { SHOO_CLASS } from '../helpers/shoo-sounds';
-import { speechLikeNoise } from './hands-free-fixture';
+import { speechLikeNoise } from './speech-noise';
 import { checkTeachSegments, WEB_TEST_GAIN_DB, WEB_TEST_IMPACT_SPACING_MS, WEB_TEST_SAMPLE_RATE_HZ, WEB_TEST_TEACH_COPIES, WEB_TEST_TEACH_LEAD_MS } from './fixture';
 import { FIXTURE_SHOO_FIRST_WAV_PATH, FIXTURE_SHOO_PLAY_WAV_PATH, FIXTURE_SHOO_STORED_PATH, FIXTURE_SHOO_TIMES_PATH } from './paths';
 

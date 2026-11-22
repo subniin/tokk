@@ -1,6 +1,4 @@
 import { generateFixtures, generateHumFixtures, generateTeachFixtures, generateTeachPageSeed } from './fixture';
-import { generateHandsFreeFixture } from './hands-free-fixture';
-import { generateKnockOnceFixture } from './knock-once-fixture';
 import { generateShooFixture } from './shoo-fixture';
 import { generateTalkFixture } from './click-talk-fixture';
 import { generateSlidesFixture } from './slides-fixture';
@@ -13,8 +11,6 @@ export default async function globalSetup(): Promise<void> {
   await generateTeachFixtures();
   await generateTeachPageSeed();
   await generateHumFixtures();
-  await generateHandsFreeFixture();   // Task 22
-  await generateKnockOnceFixture();   // Task 23
   await generateSlidesFixture();      // Task 26
   await generateShooFixture();        // Task 33
   await generateTalkFixture();        // Task 34

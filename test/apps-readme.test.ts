@@ -15,7 +15,7 @@ export const REQUIRED_PHRASES = [
   'one folder per app', 'lowercase letters, digits and hyphens', 'src/main.ts', 'index.html', './dist/app.js',
   MARKER_START, MARKER_END, 'npm run count:wiring', "from 'tokk'", 'check:public-api', 'core/', 'web/',
   'story.json', 'sounds.json', 'sounds/', 'not copied', 'generated', 'ignored by Git', 'npm run dev', '/apps/<name>/index.html',
-  'restart', 'npm run build:site', 'relative', 'site-src/index.html', 'hands-free', 'knock-once',
+  'restart', 'npm run build:site', 'relative', 'site-src/index.html', 'click-talk', 'shoo',
 ];
 
 export function missingPhrases(text: string): string[] {
@@ -35,12 +35,14 @@ describe('apps/README.md and the README example (Task 21)', () => {
     expect(missingPhrases('')).toEqual(REQUIRED_PHRASES);
     const full = REQUIRED_PHRASES.join('\n');
     expect(missingPhrases(full)).toEqual([]);
-    expect(missingPhrases(full.replace('knock-once', ''))).toEqual(['knock-once']);
+    expect(missingPhrases(full.replace('shoo', ''))).toEqual(['shoo']);
   });
 
   it('R1: apps/README.md has a phrase for each rule', () => {
     expect(existsSync(APPS_README)).toBe(true);
-    expect(missingPhrases(readFileSync(APPS_README, 'utf8'))).toEqual([]);
+    const text = readFileSync(APPS_README, 'utf8');
+    expect(missingPhrases(text)).toEqual([]);
+    expect(text).not.toMatch(/hands-free|knock-once/);   // Task 36: the two replaced apps are gone
   });
 
   it('R1: the README module block equals the hello block, shows the jsDelivr import map, and states the measured count', () => {

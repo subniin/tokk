@@ -8,14 +8,17 @@ import { REPO_ROOT } from './web/paths';
 const DOC_PATH = join(REPO_ROOT, 'docs', 'integration.md');
 const NOT_MEASURED = 'not measured yet';
 const MIN_HUMAN_CHECK_ROWS = 6;
+const EARLIER_APPS_HEADING = 'Earlier apps (replaced on 2026-11-22)';
+const HUMAN_CHECKS = ['Teaching a new sound', 'First run setup', 'Wrong choices while talking', 'Shoo! to dawn', 'Sound mix-ups', 'Double clap'];
+const OLD_CHECKS = ['Three articles hands-free', 'Wrong clicks', 'Whole game by knocking', 'One knock against two knocks'];
 const PLACEHOLDERS = [/\bN hours\b/, /\bM hours\b/, /\bTBD\b/, /\bTODO\b/];
 const APP_ROWS: { group: string; marker: string }[] = [
-  { group: 'apps/hands-free', marker: 'Hands-Free' },
-  { group: 'apps/knock-once', marker: 'Knock Once' },
+  { group: 'apps/click-talk', marker: 'Click Talk' },
+  { group: 'apps/shoo', marker: 'Shoo!' },
 ];
 const THIRD_CASE_MARKER = 'task 26';
 const STAGE_ONE_COMMIT = 'f21a3b1';
-const COMMITS = ['e7d5083', '2e29c2f', '9bf4b5f', '3a32cf3'];
+const COMMITS = ['5632a2b', '81bc14f', '59dff36', 'c8ff1a3', 'e7d5083', '2e29c2f', '9bf4b5f', '3a32cf3'];
 
 const doc = (): string => (existsSync(DOC_PATH) ? readFileSync(DOC_PATH, 'utf8') : '');
 
@@ -51,7 +54,7 @@ describe('docs/integration.md', () => {
       const row = rows.find((r) => r[0].includes(marker));
       expect(row, `no case row for ${marker}`).toBeDefined();
       const lines = groups.find((g) => g.name === group)!.lines;
-      expect(row![2]).toBe(`${lines} lines`);
+      expect(row![2].startsWith(`${lines} lines`), `${marker}: ${row![2]}`).toBe(true);   // Task 36: the Click Talk row adds "(count:wiring)"
     }
     // Task 26, named update of I2: the third row is filled. It states the computed cases/slides line count (the agent's own
     // number and the part the caption added may follow it), and names reveal.js, the MIT licence and the synthetic claps.
@@ -97,5 +100,32 @@ describe('docs/integration.md', () => {
       expect(how).toContain(word);
     }
     expect(text).toContain('synthetic');
+  });
+
+  it('I6: Task 36, the two replaced apps sit in their own section, not in the main tables', () => {
+    const text = doc();
+    const earlier = section(text, EARLIER_APPS_HEADING);
+    expect(earlier, 'no earlier-apps section').not.toBe('');
+    expect(earlier).toContain('redesigned');
+    const rows = tableRows(earlier);
+    expect(rows.some((r) => r[0].includes('Hands-Free'))).toBe(true);
+    expect(rows.some((r) => r[0].includes('Knock Once'))).toBe(true);
+    for (const heading of ['Cases', 'Wiring lines', 'Human checks with a real microphone']) {
+      const body = section(text, heading);
+      expect(body, heading).not.toBe('');
+      expect(body, heading).not.toMatch(/Hands-Free|Knock Once|hands-free|knock-once/);
+    }
+    expect(text.indexOf('## Earlier apps')).toBeGreaterThan(text.indexOf('## Cases'));
+  });
+
+  it('I7: Task 36, the human checks are the new set, each with a target', () => {
+    const rows = tableRows(section(doc(), 'Human checks with a real microphone'));
+    expect(rows.map((r) => r[0])).toEqual(HUMAN_CHECKS);
+    for (const old of OLD_CHECKS) expect(rows.some((r) => r[0] === old), old).toBe(false);
+    const by = (name: string): string => rows.find((r) => r[0] === name)!.join(' ');
+    expect(by('First run setup')).toContain('under 3 minutes');
+    expect(by('Wrong choices while talking')).toContain('at most 1 wrong choice');
+    expect(by('Shoo! to dawn')).toContain('all five waves');
+    expect(by('Sound mix-ups')).toContain('at least 18 of 20');
   });
 });

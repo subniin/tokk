@@ -11,8 +11,8 @@ const INTEGRATION_PATH = join(REPO_ROOT, 'docs', 'integration.md');
 const SITE_URL = 'https://subniin.github.io/tokk/';
 const DEMO_LINE = 'Demo video: coming with the submission.';
 const CASES: { group: string; integrationMarker: string }[] = [
-  { group: 'apps/hands-free', integrationMarker: 'Hands-Free' },
-  { group: 'apps/knock-once', integrationMarker: 'Knock Once' },
+  { group: 'apps/click-talk', integrationMarker: 'Click Talk' },
+  { group: 'apps/shoo', integrationMarker: 'Shoo!' },
   { group: 'cases/slides', integrationMarker: 'Slide deck' },
 ];
 
@@ -149,16 +149,16 @@ describe('README.md (Task 27)', () => {
 
   it('RM4: wiring numbers equal count:wiring', () => {
     const wiring = wiringNow();
-    expect(wiring.size).toBe(6);   // Task 34, named update: apps/click-talk is the sixth group
+    expect(wiring.size).toBe(4);   // Task 36, named update: click-talk, shoo, slides and the hello example
     expect(wiringProblems(readme(), wiring)).toEqual([]);
-    const wrong = new Map(wiring).set('apps/hands-free', wiring.get('apps/hands-free')! + 1);
+    const wrong = new Map(wiring).set('apps/shoo', wiring.get('apps/shoo')! + 1);
     expect(wiringProblems(readme(), wrong).length).toBeGreaterThan(0);
   });
 
   it('RM5: time and Kiro credits equal docs/integration.md', () => {
     expect(timeProblems(readme(), integration)).toEqual([]);
-    expect(timeProblems(readme().replace('1 h 24 min', '1 h 25 min'), integration).join()).toContain('apps/hands-free');
-    expect(timeProblems(readme().replace('about 84', 'about 8'), integration).join()).toContain('apps/knock-once');
+    expect(timeProblems(readme().replace('2 h 10 min', '2 h 11 min'), integration).join()).toContain('apps/shoo');
+    expect(timeProblems(readme().replace('about 56.0', 'about 57.0'), integration).join()).toContain('apps/click-talk');
   });
 
   it('RM6: the third-party table lists every package of package.json with its exact version and licence', () => {
@@ -189,5 +189,12 @@ describe('README.md (Task 27)', () => {
       expect(text, folder).toMatch(new RegExp(`^${folder.replace(/[./]/g, '\\$&')}\\s+#`, 'm'));
     }
     expect(existsSync(join(dirname(README_PATH), 'cases', 'slides', 'LICENSE-revealjs.txt'))).toBe(true);
+  });
+
+  it('RM8: Task 36, the README names Click Talk, Shoo! and the slides case, and no replaced app', () => {
+    const text = readme();
+    for (const w of ['Click Talk', 'Shoo!', 'Slide deck', 'docs/images/click-talk.png', 'docs/images/shoo.png']) expect(text, w).toContain(w);
+    expect(text).not.toMatch(/hands-free|knock-once|Hands-Free|Knock Once|hands-free\.png/);
+    expect(text).toMatch(/Two apps and a slides case/);
   });
 });
