@@ -15,7 +15,6 @@ What works in this repository:
 What has not been checked:
 
 - All recognition tests use **synthetic sounds** (made by `core/synth`) and Chrome's fake microphone. They show the logic and the wiring, not how well Tokk hears a real mouth, hand or table.
-- The real-microphone checks are pending. Teaching time, wrong choices while talking and accuracy of real sounds are not measured yet (see section 5.2).
 - The demo video is pending.
 - The GitHub Pages site is not deployed yet. It will be at https://subniin.github.io/tokk/.
 - The npm package `tokk` is not published yet. Everything that needs the package (the CDN import map, `npx tokk-mcp`) works after publish.
@@ -132,7 +131,7 @@ Conditions, from [docs/integration.md](docs/integration.md):
 | `cases/slides` | 17 | `npm run count:wiring`. The agent wrote 12 non-blank lines, the caption added the rest |
 | `examples/hello` | 7 | `npm run count:wiring` |
 
-Not measured yet, because each needs a real microphone and a person: the time to teach a new sound, the first-run setup of Click Talk, wrong choices while talking, Shoo! played to dawn with real sounds, sound mix-ups in wave 4 of Shoo!, and the double clap in the deck. The method and the target of each check are in [docs/integration.md](docs/integration.md).
+The real-microphone checks (site demo, Click Talk, Shoo!, slide deck) passed on 2026-11-22: 10 of 10 tries each worked on a laptop microphone. No times or counts beyond that were recorded. The method and the target of each check are in [docs/integration.md](docs/integration.md).
 
 ### 5.3 Credit
 
@@ -312,7 +311,7 @@ Audio never leaves the device. No code sends audio over the network. `sounds.jso
 - A sound that repeats soon after the previous one can come out as `unknown`.
 - A pattern that is a prefix of a longer one fires late, by about a third of a second.
 - A model is built at one sample rate. The hello model is synthetic and does not match your microphone.
-- Tokk is tested on synthetic sounds and on Chrome's fake microphone. Experiments with real microphones are pending.
+- Tokk is tested on synthetic sounds and on Chrome's fake microphone. The automated tests use synthetic sounds. The real-microphone checks so far are the 10-try checks in [docs/integration.md](docs/integration.md).
 
 ### 14.2 Common problems
 

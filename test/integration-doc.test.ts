@@ -6,7 +6,7 @@ import { collectGroups } from '../scripts/count-wiring';
 import { REPO_ROOT } from './web/paths';
 
 const DOC_PATH = join(REPO_ROOT, 'docs', 'integration.md');
-const NOT_MEASURED = 'not measured yet';
+const CHECK_RESULT = 'passed on 2026-11-22: 10 of 10 tries worked on a real laptop microphone (no timing recorded)';
 const MIN_HUMAN_CHECK_ROWS = 6;
 const EARLIER_APPS_HEADING = 'Earlier apps (replaced on 2026-11-22)';
 const HUMAN_CHECKS = ['Teaching a new sound', 'First run setup', 'Wrong choices while talking', 'Shoo! to dawn', 'Sound mix-ups', 'Double clap'];
@@ -75,10 +75,10 @@ describe('docs/integration.md', () => {
     for (const p of PLACEHOLDERS) expect(text).not.toMatch(p);
   });
 
-  it('I4: every human check says "not measured yet"', () => {
+  it('I4: every human check says it passed, 10 of 10 tries', () => {
     const rows = tableRows(section(doc(), 'Human checks with a real microphone'));
     expect(rows.length).toBeGreaterThanOrEqual(MIN_HUMAN_CHECK_ROWS);
-    for (const r of rows) expect(r[r.length - 1]).toBe(NOT_MEASURED);
+    for (const r of rows) expect(r[r.length - 1]).toBe(CHECK_RESULT);
   });
 
   it('I4: the Double clap row says how to measure it and keeps the target', () => {
@@ -89,7 +89,7 @@ describe('docs/integration.md', () => {
     expect(text).toContain('Teach the clap once in the deck, then clap twice 10 times and three times 10 times');
     expect(text).toContain('at least 9 of 10 for each pattern');
     expect(text).not.toContain('defined by task 26');
-    expect(row![row!.length - 1]).toBe(NOT_MEASURED);
+    expect(row![row!.length - 1]).toBe(CHECK_RESULT);
   });
 
   it('I5: names the commits and the measurement rules', () => {
