@@ -172,12 +172,11 @@ describe('README.md (Task 27)', () => {
     const text = readme();
     const prose = withoutFences(text);
     expect(text).toMatch(/^## \d+\. Current status$/m);
-    for (const w of ['synthetic', "Chrome's fake microphone", 'real-microphone', 'demo video', 'GitHub Pages', 'npm package', 'pending']) {
+    for (const w of ['synthetic', "Chrome's fake microphone", 'real-microphone', 'demo video', 'npm package', 'pending']) {
       expect(text, w).toContain(w);
     }
     expect(text).toContain(DEMO_LINE);
     expect(text).toContain(SITE_URL);
-    expect(prose).toMatch(/not deployed yet/);
     expect(prose).toMatch(/npx tokk-mcp[^.]*after publish|after publish[^.]*npx tokk-mcp/);
     for (const w of ['reveal.js', '6.0.2', 'Hakim El Hattab', 'MIT', 'cases/slides/LICENSE-revealjs.txt', '_new-app', 'expectEvents', 'Use this template']) {
       expect(text, w).toContain(w);

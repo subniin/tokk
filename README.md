@@ -11,12 +11,12 @@ What works in this repository:
 - The core engine, the browser layer, the Node tools and the MCP server run from source. `npm test` runs the unit and property tests.
 - Two apps (Click Talk and Shoo!) and a case (a reveal.js slide deck) use Tokk through the public API only. They replaced the first two apps on 2026-11-22.
 - `teach.html` records a sound 10 times and writes WAV files and a `sounds.json` of feature vectors.
+- The site with a live demo, Click Talk, Shoo! and the slide deck are deployed at https://subniin.github.io/tokk/ (apps at /apps/click-talk/ and /apps/shoo/, slides at /cases/slides/).
 
 What has not been checked:
 
 - All recognition tests use **synthetic sounds** (made by `core/synth`) and Chrome's fake microphone. They show the logic and the wiring, not how well Tokk hears a real mouth, hand or table.
 - The demo video is pending.
-- The GitHub Pages site is not deployed yet. It will be at https://subniin.github.io/tokk/.
 - The npm package `tokk` is not published yet. Everything that needs the package (the CDN import map, `npx tokk-mcp`) works after publish.
 
 ## 2. Teach your sounds
