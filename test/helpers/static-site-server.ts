@@ -16,6 +16,7 @@ const CONTENT_TYPES: Record<string, string> = {
   '.js': 'text/javascript; charset=utf-8',
   '.json': 'application/json',
   '.css': 'text/css; charset=utf-8',
+  '.wav': 'audio/wav',
 };
 
 export async function startSiteServer(rootDir: string, prefix: string): Promise<SiteServer> {

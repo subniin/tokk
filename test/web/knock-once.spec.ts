@@ -447,13 +447,13 @@ test.describe('under /tokk/', () => {
     if (outDir) rmSync(outDir, { recursive: true, force: true });
   });
 
-  test('the landing page link opens Knock Once for Yes under /tokk/', async ({ page }) => {
+  test('the site address opens Knock Once for Yes under /tokk/', async ({ page }) => {
     test.setTimeout(SERIAL_TEST_TIMEOUT_MS);
     expect(warnings, 'the site build with the real apps folder has no dead link').toEqual([]);
     const seen = watch(page, new URL(server.url).origin, SITE_PREFIX);
     page.on('response', (r) => { if (r.status() >= 400) seen.problems.push(`status ${r.status()}: ${r.url()}`); });
-    await page.goto(`${server.url}${SITE_PREFIX}`);
-    await page.locator('a[href="apps/knock-once/"]').click();
+    // The new landing page (Task 35) does not link the old apps, so the app is opened by its address (they go in Task 36).
+    await page.goto(`${server.url}${SITE_PREFIX}apps/knock-once/`);
     await expect(page).toHaveURL(`${server.url}${SITE_PREFIX}apps/knock-once/`);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Knock Once for Yes');
     await expect(page.locator('#privacy')).toHaveText(PRIVACY);

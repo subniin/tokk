@@ -1,8 +1,9 @@
-// The landing page script (Task 35). Run A: the waveform bars, the demo box state and the test-only hook.
-// Run B adds the Tokk block (teach, room sound, reaction, "Hear a recording") here. The page sends nothing over the network.
+// The landing page script (Task 35): the waveform bars, the demo box state, the test-only hook, and the demo box behaviour
+// (teach, room sound, reaction, "Hear a recording") from demo-box.ts. The page sends nothing over the network.
 import '../style.css';
 import { TEST_STATE_EVENT, WAVE_BAR_PERCENTS, WAVE_HIT_RANGES } from './constants';
 import { demoView, isDemoState, isTestMode } from './demo';
+import { initDemoBox } from './demo-box';
 import type { DemoState } from './demo';
 
 const demo = document.getElementById('demo');
@@ -32,6 +33,7 @@ export function setDemoState(state: DemoState): void {
 
 drawWave();
 setDemoState('idle');
+initDemoBox(setDemoState);
 
 // Test-only: with ?test in the URL a test sets the state with window.dispatchEvent(new CustomEvent('tokk-demo-state', { detail: 'live' })).
 if (isTestMode(window.location.search)) {

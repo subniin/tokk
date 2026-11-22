@@ -35,20 +35,21 @@
           </div>
           <div class="st s-teach">
             <div class="big">Clap 5 times</div>
-            <div class="dots" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
-            <p>3 of 5 heard</p>
+            <div class="dots" id="demo-dots" aria-hidden="true"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i></div>
+            <p id="demo-count">3 of 5 heard</p>
           </div>
           <div class="st s-room">
             <div class="big">Now the room</div>
             <p>Now 10 seconds of the room. Talk or type as usual.</p>
-            <div class="timer" aria-hidden="true"><i></i></div>
-            <p>7 s left</p>
+            <div class="timer" aria-hidden="true"><i id="demo-timer"></i></div>
+            <p id="demo-left">7 s left</p>
           </div>
           <div class="st s-live">
-            <div class="big accent">clap clap</div>
-            <div class="events"><b>Heard</b><span>clap 2.41 s</span><span>clap 2.73 s</span><span class="m">clap clap</span></div>
+            <div class="big accent" id="demo-big">clap clap</div>
+            <div class="events" id="demo-events"><b>Heard</b><span>clap 2.41 s</span><span>clap 2.73 s</span><span class="m">clap clap</span></div>
             <p>Clap twice again, or try three times.</p>
             <p class="rec-note">Playing a recording. The same engine is listening to it.</p>
+            <div class="row"><button class="btn ghost" id="demo-live-recording" type="button">Hear a recording</button></div>
           </div>
           <div class="st s-fail">
             <p class="fail">The microphone is blocked. Allow it in the address bar, or hear a recording instead.</p>

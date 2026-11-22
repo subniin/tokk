@@ -12,10 +12,10 @@ Test first. English only. Do not push, publish or deploy. Do not touch `docs/_pl
 - [x] 7. One row in `docs/kiro.md` for this spec.
 - [x] 8. Run all checks (`npm test`, `npm run pbt:quick`, tsc x3, `check:public-api`, `build`, `build:site`, `site.spec.ts`). Commit `feat: add the new site page`.
 
-## Run B: the demo box behaviour (later)
-- [ ] 9. `site-src/media/clap-demo.wav` and `clap-demo-sounds.json` (synthetic).
-- [ ] 10. `site-src/src/demo-box.ts`: teach 5 claps, 10 s of room sound, reaction to `clap clap`.
-- [ ] 11. "Hear a recording": `<audio>` plus `readWav` and `runSamples`, events at play time.
-- [ ] 12. Microphone failure state and `onError`.
-- [ ] 13. Browser tests: fake microphone teaching, denied permission then recording, link checks.
-- [ ] 14. Update `docs/integration.md` if needed, run all checks, commit.
+## Run B: the demo box behaviour
+- [x] 9. `site-src/media/clap-demo.wav` (10.8 s, 16 kHz) and `clap-demo-sounds.json`, written once with core/synth by a script that was deleted afterwards. `test/site-demo.test.ts` checks the matches in Node.
+- [x] 10. `site-src/src/demo-box.ts`: teach 5 claps, 10 s of room sound, reaction to `clap clap` and `clap clap clap` (Tokk only between `// tokk:start` and `// tokk:end`).
+- [x] 11. "Hear a recording": `<audio>` plus `readWav` and `runSamples`, events shown at `audio.currentTime`; the microphone is stopped first.
+- [x] 12. Microphone failure state (denied, none, `onError`).
+- [x] 13. Browser tests in `test/web/site.spec.ts` with `test/web/site-fixture.ts` (fake microphone): first visit, returning visitor, lost track, denied then recording at 320 and 1280 px, reduced motion, app card links, no request with a body or to another origin.
+- [x] 14. `docs/devlog.md` line, all checks, commit `feat: rebuild the site with a live teach demo`.

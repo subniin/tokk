@@ -405,11 +405,11 @@ test.describe('under /tokk/', () => {
     if (outDir) rmSync(outDir, { recursive: true, force: true });
   });
 
-  test('the landing page link opens Hands-Free under /tokk/', async ({ page }) => {
+  test('the site address opens Hands-Free under /tokk/', async ({ page }) => {
     test.setTimeout(SERIAL_TEST_TIMEOUT_MS);
     const seen = watch(page, new URL(server.url).origin, SITE_PREFIX);
-    await page.goto(`${server.url}${SITE_PREFIX}`);
-    await page.locator('a[href="apps/hands-free/"]').click();
+    // The new landing page (Task 35) does not link the old apps, so the app is opened by its address (they go in Task 36).
+    await page.goto(`${server.url}${SITE_PREFIX}apps/hands-free/`);
     await expect(page).toHaveURL(`${server.url}${SITE_PREFIX}apps/hands-free/`);
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Hands-Free reader');
     await expect(page.locator('#privacy')).toHaveText('Your audio never leaves this device. Nothing is recorded or uploaded.');

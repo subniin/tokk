@@ -72,10 +72,10 @@ section { scroll-margin-top: 80px; }
 /* Every state sits in the same grid cell, so the box is always as tall as its tallest state and never resizes. */
 .stage { display: grid; padding: 18px 4px 4px; }
 .stage .big { font-size: clamp(2.2rem, 4.4vw, 3.4rem); font-weight: 800; letter-spacing: -.03em; line-height: 1; overflow-wrap: anywhere; }
-.stage .big.accent { color: var(--accent); }
+.stage .big.accent { color: var(--accent); min-height: 1em; }
 .stage p { margin: 0; color: var(--muted); font-size: 1rem; line-height: 1.5; }
 .stage .row { display: flex; flex-wrap: wrap; gap: 10px; }
-.events { display: flex; flex-wrap: wrap; gap: 8px; }
+.events { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 8px; height: 4.4rem; overflow: hidden; }
 .events b { align-self: center; font: 700 .85rem var(--mono); color: var(--muted); }
 .events span { font: 600 .9rem var(--mono); padding: 5px 10px; border-radius: 9px; background: var(--sunk); }
 .events span.m { background: var(--accent); color: var(--accent-ink); }
@@ -174,7 +174,7 @@ footer nav { display: flex; gap: 20px; }
   .wave i:nth-child(3n) { animation-delay: -.4s; }
   .wave i:nth-child(3n+1) { animation-delay: -.9s; }
   .flow .lane i { animation: travel 3.2s linear infinite; }
-  .demo.live .big { animation: pop .5s cubic-bezier(.2, .9, .3, 1.3) both; }
+  .demo.live .big.pop { animation: pop .5s cubic-bezier(.2, .9, .3, 1.3) both; }
 }
 @keyframes amp { 0%, 100% { transform: scaleY(.55); } 50% { transform: scaleY(1); } }
 @keyframes travel { from { transform: translateX(-100%); } to { transform: translateX(720%); } }

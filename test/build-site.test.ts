@@ -35,7 +35,7 @@ const read = (p: string): string => readFileSync(join(REPO_ROOT, p), 'utf8');
 
 const EXPECTED_FILES = [
   'index.html', 'teach.html', 'dist/tokk.js', 'dist/teach-page.js', 'dist/landing.js', 'dist/landing.css',
-  'examples/hello/index.html', 'examples/hello/sounds.json',
+  'examples/hello/index.html', 'examples/hello/sounds.json', 'media/clap-demo.wav', 'media/clap-demo-sounds.json',
   ...FIXTURE_APP_NAMES.flatMap((n) => [`apps/${n}/index.html`, `apps/${n}/asset.txt`, `apps/${n}/dist/app.js`]),
 ].sort();
 
@@ -79,7 +79,7 @@ describe('the site build (Task 21)', () => {
     expect([...SITE_DENY_LIST.folders].sort()).toEqual(['dist', 'extension', 'node_modules', 'sounds', 'src', 'test']);
     expect([...SITE_DENY_LIST.extensions].sort()).toEqual(['.map', '.md', '.ts', '.tsx', '.wav']);
     const files = listFiles(outDir);
-    expect(files.filter((f) => /\.(wav|ts|tsx|map|md)$/.test(f))).toEqual([]);
+    expect(files.filter((f) => !f.startsWith('media/') && /\.(wav|ts|tsx|map|md)$/.test(f))).toEqual([]);
     expect(files.filter((f) => f.split('/').some((p) => p.startsWith('.')))).toEqual([]);
     expect(files.filter((f) => /(^|\/)(sounds|src|node_modules|extension|test)\//.test(f))).toEqual([]);
     expect(files.filter((f) => f.includes('deny'))).toEqual([]);

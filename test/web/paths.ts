@@ -73,3 +73,9 @@ export const FIXTURE_TALK_ONE_WAV_PATH = resolve(GENERATED_DIR, 'click-talk-one.
 export const FIXTURE_TALK_TIMES_PATH = resolve(GENERATED_DIR, 'click-talk-times.json');
 export const FIXTURE_TALK_STORED_PATH = resolve(GENERATED_DIR, 'click-talk-stored.json');   // the localStorage text of the model of a returning user
 export const TALK_PAGE_URL = '/apps/click-talk/index.html';
+
+// Task 35: the demo box of the new site
+export const FIXTURE_SITE_FIRST_WAV_PATH = resolve(GENERATED_DIR, 'site-first.wav');
+export const FIXTURE_SITE_PLAY_WAV_PATH = resolve(GENERATED_DIR, 'site-play.wav');
+export const FIXTURE_SITE_TIMES_PATH = resolve(GENERATED_DIR, 'site-times.json');
+export const FIXTURE_SITE_STORED_PATH = resolve(GENERATED_DIR, 'site-stored.json');   // the localStorage text of a returning visitor
