@@ -26,7 +26,8 @@ html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: v
 button { font: inherit; }
 :focus-visible { outline: 3px solid #ffd98a; outline-offset: 2px; }
 
-.stage { position: relative; min-height: 100dvh; overflow: hidden; isolation: isolate;
+/* overflow: clip, not hidden: a hidden stage is still a scroll container, and a focus() inside it could scroll it sideways into the wide fog. */
+.stage { position: relative; min-height: 100dvh; overflow: hidden; overflow: clip; isolation: isolate;
   background: radial-gradient(90% 60% at 80% 0%, #1a2a30 0%, transparent 60%), radial-gradient(70% 40% at 50% 100%, #2a1c10 0%, transparent 70%), var(--bg); }
 .stage::after { content: ""; position: absolute; inset: 0; z-index: 8; pointer-events: none; background: radial-gradient(120% 90% at 50% 45%, transparent 55%, rgb(3 5 6 / .8) 100%); }
 .moon { position: absolute; z-index: 0; right: 8%; top: 40px; width: 90px; height: 90px; border-radius: 50%;

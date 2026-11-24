@@ -23,6 +23,8 @@ const WINDOW_WIDTH_PX = 1280;
 const WINDOW_HEIGHT_PX = 720;
 const NARROW_WIDTH_PX = 320;
 const NARROW_HEIGHT_PX = 640;
+const WIDE_WIDTH_PX = 1600;
+const WIDE_HEIGHT_PX = 900;
 const HUD_WIDTH_PX = 1024;
 const HUD_HEIGHT_PX = 768;
 const CANDLE_WIDTH_PX = 26;                       // apps/shoo/src/style.css .candles svg
@@ -460,6 +462,47 @@ test.describe('playing with keys', () => {
     await context.close();
   });
 
+  // The operator's report: at 1600 x 900 the stage was scrolled 77 px sideways after the game started, and two of the three
+  // candles and the "Built with Tokk" link were cut off at the left edge. The fog is wider than the stage, and a stage with
+  // overflow: hidden is still a scroll container, so a focus() or any scroll into view inside it can move it sideways. The test
+  // waits for a panel that focuses its button (Paused, then the lost screen), then asks the browser to bring that button into
+  // view the way focus navigation does when it decides to scroll, and the stage must not move.
+  test('at 1600 x 900 on wave 3 the stage does not scroll sideways and the candles and the link stay inside the window', async ({ browser, baseURL }) => {
+    const context = await browser.newContext({ baseURL, viewport: { width: WIDE_WIDTH_PX, height: WIDE_HEIGHT_PX } });
+    const page = await context.newPage();
+    await page.goto(`${SHOO_PAGE_URL}?wave=3&speed=4`);
+    await page.getByRole('button', { name: 'Play with keys' }).click();
+    await expect(page.locator('#intro')).toBeVisible();
+    await expect(page.locator('#candles svg')).toHaveCount(3);
+
+    const expectInPlace = async (where: string): Promise<void> => {
+      await page.evaluate(() => {
+        (document.activeElement as HTMLElement | null)?.scrollIntoView({ block: 'nearest', inline: 'start' });
+      });
+      expect(await stage(page).evaluate((e) => e.scrollLeft), `#stage.scrollLeft (${where})`).toBe(0);
+      const outside = await page.evaluate(() => {
+        const w = document.documentElement.clientWidth;
+        const out: string[] = [];
+        for (const e of [...Array.from(document.querySelectorAll('#candles svg')), document.getElementById('built-with-tokk') as Element]) {
+          const r = e.getBoundingClientRect();
+          if (r.left < 0 || r.right > w) out.push(`${e.id || 'candle'} ${Math.round(r.left)}..${Math.round(r.right)} of ${w}`);
+        }
+        return out;
+      });
+      expect(outside, `candles and the Built with Tokk link outside the window (${where})`).toEqual([]);
+    };
+
+    await expect(stage(page)).toHaveAttribute('data-phase', 'battle', { timeout: STEP_TIMEOUT_MS });
+    await expect(stage(page)).toHaveAttribute('data-wave', '3');
+    await page.keyboard.press('Escape');
+    await expect(page.getByRole('button', { name: 'Resume' })).toBeFocused();
+    await expectInPlace('the Paused panel');
+    await page.getByRole('button', { name: 'Resume' }).click();
+    await expect(page.locator('#lost')).toBeVisible({ timeout: KEYS_TEST_TIMEOUT_MS - STEP_TIMEOUT_MS });
+    await expect(page.locator('#lost-again')).toBeFocused();
+    await expectInPlace('the lost screen');
+    await context.close();
+  });
   // Every box of the HUD (candles, wave, Keys only / Listening, Pause, Settings) is inside the window, and the candles box is as
   // wide as its candles. 1024 x 768 with 3 lives is the case of the operator's report; the other rows are the widths and lives
   // the game can have (?lives= goes up to 9).

@@ -65,7 +65,7 @@ function put(e: HTMLElement, p: { left: number; top: number }): void {
 // ---- Screens ----
 export function showScreen(name: ScreenName | null): void {
   for (const s of SCREENS) byId(s).hidden = s !== name;
-  if (name !== null && name !== 'intro') byId(name).querySelector<HTMLElement>('button')?.focus();
+  if (name !== null && name !== 'intro') byId(name).querySelector<HTMLElement>('button')?.focus({ preventScroll: true });
 }
 
 export function showHud(on: boolean): void {
@@ -123,7 +123,7 @@ export function showMic(kind: 'denied' | 'lost' | null, mid: boolean): void {
     : 'It may have been unplugged or taken by another app.';
   byId('mic-retry').textContent = kind === 'denied' ? 'Try again' : 'Reconnect';
   card.dataset.kind = kind;
-  byId('mic-retry').focus();
+  byId('mic-retry').focus({ preventScroll: true });
 }
 
 export function setSfxLabel(on: boolean): void {
