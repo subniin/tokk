@@ -877,7 +877,6 @@ test('Under the hood toggles the debug overlay in keys mode, and ?debug=1 starts
   await hood.click();
   await expect(hood).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator(OVERLAY_HOST)).toHaveCount(1);
-  await hood.evaluate((b) => (b as HTMLElement).blur());   // a focused button keeps Space for itself
   await page.keyboard.press('Space');
   await expect(page.locator(`${OVERLAY_HOST} li.event`)).toHaveCount(1, { timeout: STEP_TIMEOUT_MS });
 
@@ -893,6 +892,25 @@ test('Under the hood toggles the debug overlay in keys mode, and ?debug=1 starts
   await expect(second.page.getByRole('button', { name: 'Under the hood' })).toHaveAttribute('aria-pressed', 'true');
   await expect(second.page.locator(OVERLAY_HOST)).toHaveCount(1);
   await second.context.close();
+});
+
+test('after a mouse click on Under the hood, Space still moves the frame and the toggle stays on', async ({ browser, baseURL }) => {
+  const { page, seen, context } = await keysBoard(browser, baseURL);
+  const hood = page.getByRole('button', { name: 'Under the hood' });
+  await expectBoard(page, 'categories', 'needs', 0);
+  await hood.click();
+  await page.keyboard.press('Space');
+  await expectBoard(page, 'categories', 'body', 0);
+  await expect(hood).toHaveAttribute('aria-pressed', 'true');
+
+  // A keyboard user can still reach the button with Tab and press it.
+  await hood.focus();
+  await page.keyboard.press('Enter');
+  await expect(hood).toHaveAttribute('aria-pressed', 'false');
+  await page.keyboard.press('Space');
+  await expectBoard(page, 'categories', 'people', 0);
+  seen.check();
+  await context.close();
 });
 
 test('the Built with Tokk link has the line count and the line range of main.ts', async ({ page }) => {

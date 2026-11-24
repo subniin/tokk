@@ -438,6 +438,7 @@ function init(): void {
     app.debug = !app.debug;
     port.setDebug(app.debug);
     hood.setAttribute('aria-pressed', String(app.debug));
+    hood.blur();   // Space and Enter are the main inputs: the next one must reach the board, not this button
   });
   byId('mic-retry').addEventListener('click', () => { void (byId('mic').dataset.kind === 'lost' ? reconnect() : begin()); });
   byId('mic-keys').addEventListener('click', () => { void useKeys(); });
