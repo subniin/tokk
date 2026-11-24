@@ -124,7 +124,34 @@ Conditions, from [docs/integration.md](docs/integration.md):
 - Credits are the Kiro credits of those runs. The times do not include any check with a real microphone.
 - Wiring lines are the lines between `// tokk:start` and `// tokk:end`, counted by `npm run count:wiring`.
 
-### 5.2 Measured numbers
+### 5.2 What each app uses from Tokk
+
+| Feature | Click Talk | Shoo! | Slides | hello |
+|---|---|---|---|---|
+| `listen()` | ✓ | ✓ | ✓ | ✓ |
+| `loadSounds()` | | | | ✓ |
+| `on` (one pattern set) | | | ✓ | ✓ |
+| `modes` and `ears.setMode()` | ✓ | ✓ | | |
+| Patterns with rests (`_`) | | ✓ | | ✓ |
+| First run without `sounds`, model stored under `storageKey` | ✓ | ✓ | ✓ | |
+| `ears.labels` | ✓ | ✓ | ✓ | |
+| Teach dialog (`ears.teach(label, { ui: true })`) | ✓ | ✓ | ✓ | |
+| Teach dialog `text` and `examples` options | ✓ | ✓ | | |
+| Background teach with `backgroundMs` | ✓ | ✓ | | |
+| `onEvent` | ✓ | ✓ | | |
+| `unknown` events | | ✓ | | |
+| `onEnvelope` | ✓ | | | |
+| `source: 'keys'` and `ears.inject()` | ✓ | ✓ | | |
+| `onError` | ✓ | ✓ | | |
+| `debug` option (debug overlay) | ✓ | ✓ | | ✓ |
+| `ears.setDebug()` | ✓ | ✓ | | |
+| `ears.pause()` and `ears.resume()` | ✓ | ✓ | | |
+| `ears.stop()` | ✓ | ✓ | | |
+| Node tests with `expectEvents` | ✓ | ✓ | ✓ | |
+| Wired by the `integrator` agent | | | ✓ | |
+| Wiring lines counted by `npm run count:wiring` | ✓ | ✓ | ✓ | ✓ |
+
+### 5.3 Measured numbers
 
 | Group | Wiring lines | Conditions and source |
 |---|---|---|
@@ -135,7 +162,7 @@ Conditions, from [docs/integration.md](docs/integration.md):
 
 The real-microphone checks (site demo, Click Talk, Shoo!, slide deck) passed on 2026-11-22: 10 of 10 tries each worked on a laptop microphone. No times or counts beyond that were recorded. The method and the target of each check are in [docs/integration.md](docs/integration.md).
 
-### 5.3 Credit
+### 5.4 Credit
 
 The slide deck uses [reveal.js](https://revealjs.com) by Hakim El Hattab, version 6.0.2, under the MIT licence. The licence text is in `cases/slides/LICENSE-revealjs.txt` and is copied byte for byte from the package. The case calls only the public API of reveal.js and never edits it. No reveal.js logo is used. Details are in [cases/slides/README.md](cases/slides/README.md).
 

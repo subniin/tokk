@@ -72,3 +72,4 @@ Real-microphone checks (2026-11-22): the operator ran every human check on a rea
 ot measured yet. Nothing was pushed, published or deployed.
 2026-11-22: Deployed the site to GitHub Pages.
 2026-11-24: Task 38 added ears.setDebug(on) (mounts or removes the debug overlay while listening), an injected-sound row in the overlay, the Under the hood toggle and the Built with Tokk link to the Click Talk and Shoo! screens (wiring is now 29 and 27 lines).
+2026-11-24: Added README section 5.2, What each app uses from Tokk, a table of the Tokk features that Click Talk, Shoo!, the slide deck and the hello example use in their code, and the README test RM9 for it.

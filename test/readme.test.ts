@@ -196,4 +196,22 @@ describe('README.md (Task 27)', () => {
     expect(text).not.toMatch(/hands-free|knock-once|Hands-Free|Knock Once|hands-free\.png/);
     expect(text).toMatch(/Two apps and a slides case/);
   });
+
+  it('RM9: the section "What each app uses from Tokk" has one table with a column per app and a check in every row', () => {
+    const text = readme();
+    const lines = text.split(/\r?\n/);
+    const at = lines.findIndex((l) => /^### \d+\.\d+ What each app uses from Tokk$/.test(l));
+    expect(at, 'the section heading').toBeGreaterThan(0);
+    // Only the table follows the heading, up to the next heading.
+    const body = lines.slice(at + 1, lines.findIndex((l, i) => i > at && /^#{2,3} /.test(l))).filter((l) => l.trim() !== '');
+    expect(body.every((l) => l.trim().startsWith('|')), 'nothing but the table').toBe(true);
+    const table = tableAfter(body.join('\n'), 'Feature');
+    expect(table.header).toEqual(['Feature', 'Click Talk', 'Shoo!', 'Slides', 'hello']);
+    expect(table.rows.length).toBeGreaterThan(5);
+    for (const row of table.rows) {
+      expect(row.length, row[0]).toBe(5);
+      expect(row.slice(1).every((c) => c === '' || c === '\u2713'), row[0]).toBe(true);
+      expect(row.slice(1).some((c) => c === '\u2713'), `${row[0]} is used by at least one app`).toBe(true);
+    }
+  });
 });
