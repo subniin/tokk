@@ -26,6 +26,7 @@ interface Glue {
   sound(label: string): void;
   boss(): void;
   failed(): void;
+  debug(): boolean;
 }
 
 // tokk:start
@@ -45,6 +46,7 @@ async function connect(source: 'mic' | 'keys', mode: string, app: Glue): Promise
     ...(source === 'keys' ? { source: 'keys' as const } : {}),
     onEvent: (e: EngineEvent) => { if (e.kind === 'sound' || e.kind === 'unknown') app.sound(e.kind === 'sound' ? e.label : 'unknown'); },
     onError: () => app.failed(),
+    debug: app.debug(),
   });
 }
 const port = {
@@ -52,6 +54,7 @@ const port = {
   pause: () => ears?.pause(),
   resume: () => ears?.resume(),
   inject: (sound: SoundId) => ears?.inject(sound),
+  setDebug: (on: boolean) => ears?.setDebug(on),
   taught: (sound: string) => ears?.labels.includes(sound) ?? false,
   roomTaught: () => ears?.sounds.examples.some((e) => e.label === 'background') ?? false,
   teach: (sound: SoundId) => (ears as Ears).teach(sound, { ui: true, examples: TEACH_EXAMPLES_PER_SOUND, text: { record: TEACH_LINE[sound] } }),
@@ -72,6 +75,7 @@ const app = {
   token: 0,              // a new game or a restart makes the running flows stale
   mode: 'battle',
   lastFrameMs: 0,
+  debug: new URLSearchParams(window.location.search).get('debug') === '1',   // the Under the hood toggle: not stored
 };
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => { setTimeout(resolve, ms / params.speed); });
@@ -119,6 +123,7 @@ function dispatch(input: GameInput): void {
 const glue: Glue = {
   sound: (label) => dispatch({ type: 'sound', label }),
   boss: () => dispatch({ type: 'pattern', pattern: BOSS_PATTERN }),
+  debug: () => app.debug,
   failed: () => {
     // The Ears is finished. Keys keep working on a new Ears without a microphone, and the card offers to reconnect.
     app.keysMode = true;
@@ -358,6 +363,13 @@ function init(): void {
   byId('room-start').addEventListener('click', () => { void onRoomStart(); });
   byId('mic-retry').addEventListener('click', () => { void reconnect(); });
   byId('mic-keys').addEventListener('click', () => { void playWithKeys(); });
+  const hood = byId('under-the-hood');
+  hood.setAttribute('aria-pressed', String(app.debug));
+  hood.addEventListener('click', () => {
+    app.debug = !app.debug;
+    port.setDebug(app.debug);
+    hood.setAttribute('aria-pressed', String(app.debug));
+  });
   byId('pause').addEventListener('click', pauseGame);
   byId('resume').addEventListener('click', resumeGame);
   byId('settings').addEventListener('click', openSettings);

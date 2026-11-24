@@ -71,3 +71,4 @@ Task 36 (2026-11-22) removed the first two apps, Hands-Free and Knock Once for Y
 Real-microphone checks (2026-11-22): the operator ran every human check on a real laptop microphone, 10 tries each, and all 10 tries worked. No times or counts beyond that were recorded. Updated docs/integration.md and the README (sections 1, 5.2 and 14.1) and changed the tests that expected 
 ot measured yet. Nothing was pushed, published or deployed.
 2026-11-22: Deployed the site to GitHub Pages.
+2026-11-24: Task 38 added ears.setDebug(on) (mounts or removes the debug overlay while listening), an injected-sound row in the overlay, the Under the hood toggle and the Built with Tokk link to the Click Talk and Shoo! screens (wiring is now 29 and 27 lines).

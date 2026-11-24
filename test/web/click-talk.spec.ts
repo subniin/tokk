@@ -9,6 +9,7 @@ import { chromium, expect, test } from '@playwright/test';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { countWiring } from '../../scripts/count-wiring';
 import { CATEGORIES, EMPTY_FREQUENT_TEXT, PHRASE_COUNT_MESSAGE } from '../../apps/click-talk/src/phrases';
 import { DEFAULT_SETTINGS, saveSettings } from '../../apps/click-talk/src/settings';
 import type { Settings } from '../../apps/click-talk/src/settings';
@@ -862,4 +863,46 @@ test('the Frequent board of a new user says what it is for', async ({ browser, b
   await expect(page.locator('#g-phr .empty')).toHaveText(EMPTY_FREQUENT_TEXT);
   seen.check();
   await context.close();
+});
+
+// ---- Task 38: Under the hood and the Built with Tokk link ----
+const OVERLAY_HOST = '[data-tokk-overlay]';
+
+test('Under the hood toggles the debug overlay in keys mode, and ?debug=1 starts with it on', async ({ browser, baseURL }) => {
+  const { page, seen, context } = await keysBoard(browser, baseURL);
+  const hood = page.getByRole('button', { name: 'Under the hood' });
+  await expect(hood).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator(OVERLAY_HOST)).toHaveCount(0);
+
+  await hood.click();
+  await expect(hood).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator(OVERLAY_HOST)).toHaveCount(1);
+  await hood.evaluate((b) => (b as HTMLElement).blur());   // a focused button keeps Space for itself
+  await page.keyboard.press('Space');
+  await expect(page.locator(`${OVERLAY_HOST} li.event`)).toHaveCount(1, { timeout: STEP_TIMEOUT_MS });
+
+  await hood.click();
+  await expect(hood).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator(OVERLAY_HOST)).toHaveCount(0);
+  seen.check();
+  await context.close();
+
+  const second = await open(browser, baseURL, { model: STORED, settings: settingsText(), deny: true });
+  await second.page.goto(`${TALK_PAGE_URL}?debug=1`);
+  await second.page.getByRole('button', { name: 'Use keys' }).click();
+  await expect(second.page.getByRole('button', { name: 'Under the hood' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(second.page.locator(OVERLAY_HOST)).toHaveCount(1);
+  await second.context.close();
+});
+
+test('the Built with Tokk link has the line count and the line range of main.ts', async ({ page }) => {
+  await page.goto(TALK_PAGE_URL);
+  const main = readFileSync(resolve(REPO_ROOT, 'apps', 'click-talk', 'src', 'main.ts'), 'utf8').split(/\r?\n/);
+  const start = main.findIndex((l) => l.startsWith('// tokk:start')) + 1;
+  const end = main.findIndex((l) => l.startsWith('// tokk:end')) + 1;
+  const link = page.getByRole('link', { name: /^Built with Tokk/ });
+  await expect(link).toHaveText(`Built with Tokk \u00b7 ${countWiring(main.join('\n')).lines} lines`);
+  await expect(link).toHaveAttribute('href', `https://github.com/subniin/tokk/blob/main/apps/click-talk/src/main.ts#L${start}-L${end}`);
+  await expect(link).toHaveAttribute('target', '_blank');
+  await expect(link).toHaveAttribute('rel', 'noopener');
 });

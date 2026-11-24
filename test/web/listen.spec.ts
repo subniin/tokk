@@ -165,3 +165,45 @@ test("source 'keys' opens no microphone, and ears.inject calls the handler", asy
   await waitForCalls(page, 1, WEB_TEST_WAIT_SLACK_MS);
   expect((await callsOf(page)).map((c) => c.pattern)).toEqual(['low low']);
 });
+
+test('ears.setDebug mounts and removes the real overlay, ignores the same value, and does nothing after stop()', async ({ page }) => {
+  await instrument(page);
+  await page.goto(pageUrl('&source=keys'));
+  await page.click('#start');
+  await page.waitForFunction(() => (window as unknown as { tokkTest: { ready: boolean } }).tokkTest.ready);
+  const hosts = (): Promise<number> => page.evaluate(() => document.querySelectorAll('[data-tokk-overlay]').length);
+  const call = (on: boolean): Promise<void> => page.evaluate((v) => (window as unknown as { tokkTest: { ears: { setDebug(on: boolean): void } } }).tokkTest.ears.setDebug(v), on);
+
+  expect(await hosts()).toBe(0);
+  await call(true);
+  expect(await hosts()).toBe(1);
+  await page.evaluate(() => { (document.querySelector('[data-tokk-overlay]') as HTMLElement).dataset.mark = 'first'; });
+  await call(true);
+  expect(await hosts()).toBe(1);
+  expect(await page.evaluate(() => (document.querySelector('[data-tokk-overlay]') as HTMLElement).dataset.mark)).toBe('first');
+  await call(false);
+  expect(await hosts()).toBe(0);
+  await call(false);
+  expect(await hosts()).toBe(0);
+
+  await call(true);
+  expect(await hosts()).toBe(1);
+  await page.evaluate(() => (window as unknown as { tokkTest: { ears: { stop(): Promise<void> } } }).tokkTest.ears.stop());
+  expect(await hosts()).toBe(0);
+  await call(true);
+  expect(await hosts()).toBe(0);
+});
+
+test('ears.setDebug(true) after the start gives the overlay the matches of the file, like debug: true', async ({ page }) => {
+  await instrument(page);
+  const info = await fixtureInfo();
+  await page.goto(pageUrl(`&source=${encodeURIComponent(FIXTURE_WAV_URL)}`));
+  await page.click('#start');
+  await page.waitForFunction(() => (window as unknown as { tokkTest: { ready: boolean } }).tokkTest.ready);
+  await page.evaluate(() => (window as unknown as { tokkTest: { ears: { setDebug(on: boolean): void } } }).tokkTest.ears.setDebug(true));
+  await page.waitForFunction(
+    () => (document.querySelector('[data-tokk-overlay]')?.shadowRoot?.querySelectorAll('li.match').length ?? 0) >= 1,
+    undefined,
+    { timeout: info.durationMs + WEB_TEST_WAIT_SLACK_MS, polling: 100 },
+  );
+});

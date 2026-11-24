@@ -79,6 +79,11 @@ export function formatEventRow(report: SegmentReport, thresholds: Record<string,
   return { kind, label, text: parts.join(SEPARATOR), time, confidence, nearestId, distance, threshold };
 }
 
+// A sound that ears.inject() put in (keys mode): no segment was classified, so there is no nearest example or distance.
+export function formatInjectedRow(label: string, t: number): string {
+  return [seconds(t), label, 'injected'].join(SEPARATOR);
+}
+
 export function formatMatchRow(pattern: string, match: MatchEvent): MatchRow {
   const time = seconds(match.t);
   const speed = typeof match.speed === 'number' && Number.isFinite(match.speed) ? num(match.speed, WEB_OVERLAY_DISTANCE_DECIMALS) : '';

@@ -3,5 +3,5 @@
   "compilerOptions": {
     "types": ["node"]
   },
-  "include": ["web", "core", "node", "test/web", "test/web-unit", "test/listen-errors.test.ts", "test/teach-background-ms.test.ts", "test/helpers", "scripts/build.ts", "playwright.config.ts"]
+  "include": ["web", "core", "node", "test/web", "test/web-unit", "test/listen-errors.test.ts", "test/listen-debug.test.ts", "test/teach-background-ms.test.ts", "test/helpers", "scripts/build.ts", "playwright.config.ts"]
 }

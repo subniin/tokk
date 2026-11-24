@@ -100,6 +100,8 @@ addEventListener('keydown', (e) => { if (e.key === ' ') keys.inject('clap'); });
 
 Teach option: `ears.teach('background', { ui: true, backgroundMs: 30000 })` shows a countdown, hides **Done** and ends the recording by itself after 10000 to 120000 ms; other labels ignore it.
 
+`ears.setDebug(true)` mounts the debug overlay of `debug: true` while listening, `ears.setDebug(false)` removes it, and the same value again does nothing.
+
 ## 4. Demo video
 
 Demo video: coming with the submission.
@@ -110,8 +112,8 @@ Demo video: coming with the submission.
 
 | Case | Screenshot | Sounds | Wiring lines | Time | Kiro credits |
 |---|---|---|---|---|---|
-| [Shoo!](apps/shoo/) (a sound defense game: each monster runs from one sound) | [png](docs/images/shoo.png) | click, clap, knock, pop, `background` (synthetic sounds for the Node tests; the player teaches real ones on the first run) | 25 | 2 h 10 min | about 63.9 |
-| [Click Talk](apps/click-talk/) (a communication board: a tongue click moves, a lip pop chooses, the laptop speaks) | [png](docs/images/click-talk.png) | click, pop, `background` (synthetic sounds for the Node tests; the caregiver teaches real ones on the first run) | 27 | 1 h 32 min | about 56.0 |
+| [Shoo!](apps/shoo/) (a sound defense game: each monster runs from one sound) | [png](docs/images/shoo.png) | click, clap, knock, pop, `background` (synthetic sounds for the Node tests; the player teaches real ones on the first run) | 27 | 2 h 10 min | about 63.9 |
+| [Click Talk](apps/click-talk/) (a communication board: a tongue click moves, a lip pop chooses, the laptop speaks) | [png](docs/images/click-talk.png) | click, pop, `background` (synthetic sounds for the Node tests; the caregiver teaches real ones on the first run) | 29 | 1 h 32 min | about 56.0 |
 | [Slide deck](cases/slides/) (reveal.js, clap twice for the next slide) | [png](docs/images/slides.png) | clap (synthetic claps for the Node tests; the user teaches real claps on the first run) | 17 | 1 h 50 min | about 42.7 |
 
 Conditions, from [docs/integration.md](docs/integration.md):
@@ -126,8 +128,8 @@ Conditions, from [docs/integration.md](docs/integration.md):
 
 | Group | Wiring lines | Conditions and source |
 |---|---|---|
-| `apps/click-talk` | 27 | `npm run count:wiring`, same as docs/integration.md |
-| `apps/shoo` | 25 | `npm run count:wiring`, same as docs/integration.md |
+| `apps/click-talk` | 29 | `npm run count:wiring`, same as docs/integration.md |
+| `apps/shoo` | 27 | `npm run count:wiring`, same as docs/integration.md |
 | `cases/slides` | 17 | `npm run count:wiring`. The agent wrote 12 non-blank lines, the caption added the rest |
 | `examples/hello` | 7 | `npm run count:wiring` |
 

@@ -152,8 +152,8 @@ describe('landing page numbers (Task 35)', () => {
     expect(shoo).toContain('Shoo!');
     const ct = row('| Click Talk (task 34)');
     const sh = row('| Shoo! (task 33)');
-    expect(lines('apps/click-talk')).toBe(27);
-    expect(lines('apps/shoo')).toBe(25);
+    expect(lines('apps/click-talk')).toBe(29);
+    expect(lines('apps/shoo')).toBe(27);
     expect(clickTalk).toContain(`Wiring ${lines('apps/click-talk')} lines`);
     expect(shoo).toContain(`Wiring ${lines('apps/shoo')} lines`);
     expect(clickTalk).toContain(`Built in ${hours(ct, 'Duration')}`);

@@ -47,7 +47,7 @@ export interface ListenOptions {
   on?: Handlers;
   modes?: Record<string, Handlers>;
   mode?: string;
-  debug?: boolean;                      // true mounts the debug overlay (a panel with the waveform and the last results)
+  debug?: boolean;                      // true mounts the debug overlay (a panel with the waveform and the last results); ears.setDebug() changes it later
   // A WAV URL, a MediaStream, or none for the microphone. 'keys' means no microphone and no audio: a page timer pushes
   // 20 ms of silence so the engine clock and the pattern timing run, and sounds come only from ears.inject().
   source?: string | MediaStream;
@@ -100,6 +100,9 @@ export interface Ears {
   // the classifier, and onEvent gets it too. Ignored while paused. Throws a RangeError for an empty label and for
   // 'background'. It is how a keyboard takes the same patterns as the microphone (source: 'keys').
   inject(label: string): void;
+  // Mounts (true) or removes (false) the debug overlay of listen({ debug: true }) while listening. The same value again, and a
+  // call on a stopped or failed Ears, do nothing. stop() removes the overlay too.
+  setDebug(on: boolean): void;
 }
 
 type HandlerOptions = Pick<ListenOptions, 'on' | 'modes' | 'mode'>;
@@ -297,6 +300,7 @@ export async function listen(options: ListenOptions): Promise<Ears> {
   let unwatch: (() => void) | null = null;   // removes the listeners of the error watch
   let stopping: Promise<void> | null = null;
   let overlay: OverlayHandle | null = null;
+  let debugOn = opts.debug === true;         // the overlay is wanted: set by listen({ debug }) and by ears.setDebug()
   let contextRate = 0;                       // sample rate of the microphone or the WAV, set at start
   let paused = false;
   let teaching = false;                      // the dialog is recording: matches are dropped, pause and resume are ignored
@@ -330,6 +334,10 @@ export async function listen(options: ListenOptions): Promise<Ears> {
         withOverlay((o) => o.onEvent({ t: msg.t, durationMs: msg.durationMs, result: msg.result }));
         return;
       case 'event':
+        if (!teaching && msg.e.kind === 'sound' && msg.e.durationMs === 0) {   // ears.inject(): no segment report
+          const { label, t } = msg.e;
+          withOverlay((o) => o.onInjected(label, t));
+        }
         if (teaching || opts.onEvent === undefined) return;   // also a message that was already in flight when the dialog opened
         try { opts.onEvent(msg.e); } catch (e) { rethrowLater(e); }
         return;
@@ -421,7 +429,7 @@ export async function listen(options: ListenOptions): Promise<Ears> {
       sounds = stored !== null && stored.sampleRate === sampleRate ? stored : emptyModel(sampleRate);
     }
     post({ type: 'init', sounds, sampleRate, patterns, mode: currentMode });
-    if (opts.debug === true) overlay = tryMount(sampleRate);
+    if (debugOn) overlay = tryMount(sampleRate);
     if (mic) {
       post({ type: 'connect', port: mic.workerPort as unknown as MessagePortLike }, [mic.workerPort]);
     } else if (wav) {
@@ -460,7 +468,7 @@ export async function listen(options: ListenOptions): Promise<Ears> {
   const adopt = (model: SoundModel): boolean => {
     sounds = model;
     const result = saveStoredModel(storageKey, base, model);
-    if (opts.debug === true) {
+    if (debugOn) {
       overlay?.destroy();
       overlay = tryMount(contextRate);
       withOverlay((o) => o.setState('listening'));
@@ -586,6 +594,17 @@ export async function listen(options: ListenOptions): Promise<Ears> {
       if (label === BACKGROUND) throw new RangeError(`ears.inject(): "${BACKGROUND}" is not a sound that can be injected.`);
       if (closed || paused || teaching) return;
       post({ type: 'inject', label });
+    },
+    setDebug(on: boolean): void {
+      if (closed || on === debugOn) return;
+      debugOn = on;
+      if (!on) {
+        overlay?.destroy();
+        overlay = null;
+        return;
+      }
+      overlay = tryMount(contextRate);
+      withOverlay((o) => o.setState(teaching ? 'teaching' : paused ? 'paused' : 'listening'));
     },
     setMode(name: string): void {
       throwawayEngine({ modes: Object.fromEntries(Object.keys(handlerSets).map((m) => [m, {}])), mode: Object.keys(handlerSets)[0] }, sounds, SAMPLE_RATE_MIN_HZ).setMode(name);

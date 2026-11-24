@@ -10,7 +10,7 @@ import {
 import type { WorkerToMain } from '../protocol';
 import { drawWaveform } from './draw';
 import type { DrawColours } from './draw';
-import { formatEventRow, formatMatchRow, sampleRateWarning, stateLabel } from './format';
+import { formatEventRow, formatInjectedRow, formatMatchRow, sampleRateWarning, stateLabel } from './format';
 import type { OverlayState } from './format';
 import { LABEL_PALETTE, OVERLAY_COLOURS as C } from './theme';
 import { createWaveformModel, nextRedraw } from './waveform';
@@ -19,6 +19,8 @@ export interface OverlayHandle {
   onEnvelope(msg: Extract<WorkerToMain, { type: 'envelope' }>): void;
   // The input is a segment report (the only message that has the nearest example and the distance).
   onEvent(report: SegmentReport): void;
+  // A sound from ears.inject(): it has no segment report, so it gets a row of its own.
+  onInjected(label: string, t: number): void;
   onMatch(pattern: string, match: MatchEvent): void;
   setState(state: OverlayState): void;
   destroy(): void;
@@ -206,6 +208,10 @@ export function mountOverlay(o: { sounds: SoundModel; sampleRate: number }): Ove
       const row = formatEventRow(report, o.sounds.thresholds);
       addRow(`event ${row.kind}`, row.text);
       markDirty();
+    },
+    onInjected(label, t) {
+      if (destroyed) return;
+      addRow('event injected', formatInjectedRow(label, t));
     },
     onMatch(pattern, match) {
       if (destroyed) return;

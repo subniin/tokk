@@ -152,3 +152,7 @@ button { font: inherit; }
   .heard, .keys-line { font-size: .85rem; }
   .moon { width: 56px; height: 56px; top: 80px; }
 }
+
+/* Under the hood toggle and the Built with Tokk link (Task 38) */
+.link[aria-pressed="true"] { text-decoration: none; border: 1px solid currentColor; border-radius: var(--radius); padding: 5px 8px; color: var(--amber); }
+.built { position: absolute; z-index: 11; left: 8px; bottom: 8px; padding: 3px 8px; border-radius: var(--radius); background: #0a0e10; border: 1px solid #3a4448; color: var(--ink); font-size: .75rem; line-height: 1.3; text-decoration: underline; text-underline-offset: 2px; }

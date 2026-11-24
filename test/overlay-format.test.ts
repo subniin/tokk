@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import fc from 'fast-check';
 import type { SegmentReport } from '../core/engine';
-import { formatEventRow, formatMatchRow, sampleRateWarning, stateLabel } from '../web/overlay/format';
+import { formatEventRow, formatInjectedRow, formatMatchRow, sampleRateWarning, stateLabel } from '../web/overlay/format';
 
 // Test-only values.
 const PBT_RUNS = Number(process.env.PBT_RUNS ?? '100');
@@ -127,5 +127,11 @@ describe('stateLabel', () => {
     expect(stateLabel('listening')).toBe('Listening');
     expect(stateLabel('paused')).toBe('Paused');
     expect(stateLabel('teaching')).toBe('Teaching');
+  });
+});
+
+describe('formatInjectedRow', () => {
+  it('shows the time, the label and the word injected as text', () => {
+    expect(formatInjectedRow('click', 2.5)).toBe('2.50 s  click  injected');
   });
 });

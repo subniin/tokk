@@ -9,6 +9,7 @@ import { chromium, expect, test } from '@playwright/test';
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { countWiring } from '../../scripts/count-wiring';
 import { BOSS_PATTERN } from '../../apps/shoo/src/monsters';
 import { INTRO_TEXT, READY_TEXT, ROOM_TEXT, TEACH_LINE } from '../../apps/shoo/src/teach-texts';
 import { SHOO_ROOM_NOISE_AT_MS, SHOO_ROOM_NOISE_MS } from './shoo-fixture';
@@ -543,4 +544,52 @@ test.describe('playing with keys', () => {
     }
     expect(baseURL).toBeTruthy();
   });
+});
+
+// ---- Task 38: Under the hood and the Built with Tokk link ----
+const OVERLAY_HOST = '[data-tokk-overlay]';
+
+test('Under the hood toggles the debug overlay, in keys mode too, and the state is not stored', async ({ page, baseURL }) => {
+  const seen = watch(page, new URL(baseURL as string).origin);
+  await page.goto(`${SHOO_PAGE_URL}?speed=2`);
+  await page.getByRole('button', { name: 'Play with keys' }).click();
+  await expect(stage(page)).toHaveAttribute('data-phase', 'battle', { timeout: STEP_TIMEOUT_MS });
+  const hood = page.getByRole('button', { name: 'Under the hood' });
+  await expect(hood).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator(OVERLAY_HOST)).toHaveCount(0);
+
+  await hood.click();
+  await expect(hood).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator(OVERLAY_HOST)).toHaveCount(1);
+  await page.keyboard.press('1');
+  await expect(page.locator(`${OVERLAY_HOST} li.event`)).toHaveCount(1, { timeout: STEP_TIMEOUT_MS });
+
+  await hood.click();
+  await expect(hood).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator(OVERLAY_HOST)).toHaveCount(0);
+
+  await hood.click();
+  await page.reload();
+  await expect(page.locator(OVERLAY_HOST)).toHaveCount(0);
+  seen.check();
+});
+
+test('?debug=1 starts with Under the hood on', async ({ page }) => {
+  await page.goto(`${SHOO_PAGE_URL}?speed=2&debug=1`);
+  await page.getByRole('button', { name: 'Play with keys' }).click();
+  await expect(stage(page)).toHaveAttribute('data-phase', 'battle', { timeout: STEP_TIMEOUT_MS });
+  await expect(page.getByRole('button', { name: 'Under the hood' })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator(OVERLAY_HOST)).toHaveCount(1);
+});
+
+test('the Built with Tokk link has the line count and the line range of main.ts', async ({ page }) => {
+  await page.goto(SHOO_PAGE_URL);
+  const main = readFileSync(resolve(REPO_ROOT, 'apps', 'shoo', 'src', 'main.ts'), 'utf8').split(/\r?\n/);
+  const start = main.findIndex((l) => l.startsWith('// tokk:start')) + 1;
+  const end = main.findIndex((l) => l.startsWith('// tokk:end')) + 1;
+  const link = page.getByRole('link', { name: /^Built with Tokk/ });
+  await expect(link).toHaveText(`Built with Tokk \u00b7 ${countWiring(main.join('\n')).lines} lines`);
+  await expect(link).toHaveAttribute('href', `https://github.com/subniin/tokk/blob/main/apps/shoo/src/main.ts#L${start}-L${end}`);
+  await expect(link).toHaveAttribute('target', '_blank');
+  await expect(link).toHaveAttribute('rel', 'noopener');
 });

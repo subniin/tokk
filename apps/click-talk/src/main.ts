@@ -32,6 +32,7 @@ interface Glue {
   sound(label: string, tS: number): void;
   audioTo(tS: number): void;
   failed(): void;
+  debug(): boolean;
 }
 
 // tokk:start
@@ -55,6 +56,7 @@ async function connect(source: 'mic' | 'keys', mode: Mode, app: Glue): Promise<v
     onEvent: (e) => { if (e.kind === 'sound') app.sound(e.label, e.t); },
     onEnvelope: (env) => app.audioTo(env.t0 + (env.min.length * env.binMs) / MS_PER_SECOND),
     onError: () => app.failed(),
+    debug: app.debug(),
   });
 }
 const port = {
@@ -62,6 +64,7 @@ const port = {
   pause: () => ears?.pause(),
   resume: () => ears?.resume(),
   inject: (sound: 'click' | 'pop') => ears?.inject(sound),
+  setDebug: (on: boolean) => ears?.setDebug(on),
   taught: (sound: string) => ears?.labels.includes(sound) ?? false,
   roomTaught: () => ears?.sounds.examples.some((e) => e.label === 'background') ?? false,
   teach: (sound: 'click' | 'pop') => (ears as Ears).teach(sound, { ui: true, examples: TEACH_EXAMPLES, text: { title: TEACH_TITLE[sound], record: TEACH_LINE[sound] } }),
@@ -83,6 +86,7 @@ const app = {
   noVoiceShown: false,        // "No offline voice" is shown once
   helpAtMs: 0,
   voices: [] as VoiceLike[],
+  debug: new URLSearchParams(window.location.search).get('debug') === '1',   // the Under the hood toggle: not stored
   waiting: false,             // a returning user with no click or key yet: Chrome keeps the audio suspended, so nothing is heard
 };
 const burst = { times: [] as number[], timer: undefined as Timer | undefined };
@@ -250,6 +254,7 @@ const glue: Glue = {
     armBurst();
   },
   audioTo: (tS) => { app.nowS = Math.max(app.nowS, tS); },
+  debug: () => app.debug,
   failed: () => {
     // The Ears is finished. Keys keep working on a new Ears without a microphone, and the card offers to reconnect.
     app.keysMode = true;
@@ -427,6 +432,13 @@ function init(): void {
     });
   }
   byId('settings-open').addEventListener('click', openSettings);
+  const hood = byId('under-the-hood');
+  hood.setAttribute('aria-pressed', String(app.debug));
+  hood.addEventListener('click', () => {
+    app.debug = !app.debug;
+    port.setDebug(app.debug);
+    hood.setAttribute('aria-pressed', String(app.debug));
+  });
   byId('mic-retry').addEventListener('click', () => { void (byId('mic').dataset.kind === 'lost' ? reconnect() : begin()); });
   byId('mic-keys').addEventListener('click', () => { void useKeys(); });
   byId('help').addEventListener('click', stopHelp);

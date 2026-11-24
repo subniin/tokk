@@ -31,5 +31,6 @@ export type PublicApiChecks = [
   Expect<Equal<TokkError['kind'], 'mic-ended' | 'worker' | 'audio-closed'>>,
   Expect<Equal<TokkError extends Error ? true : false, true>>,
   Expect<Equal<Ears['inject'], (label: string) => void>>,
+    Expect<Equal<Ears['setDebug'], (on: boolean) => void>>,
   Expect<Equal<Exclude<ListenOptions['source'], undefined>, string | MediaStream>>,
 ];

@@ -12,6 +12,7 @@
     <div class="where"><span>Click Talk</span><span class="cat" id="crumb" hidden></span></div>
     <div class="status">
       <span class="live" id="live" data-state="on"><i aria-hidden="true"></i><span id="live-text">Listening</span></span>
+      <button class="settings-btn" id="under-the-hood" type="button" aria-pressed="false">Under the hood</button>
       <button class="settings-btn" id="settings-open" type="button">Settings</button>
     </div>
   </header>
@@ -75,6 +76,8 @@
   <section id="help" role="alert" hidden>
     <div class="box"><h1>I need help now.</h1><p>The alarm is sounding.</p><span class="stop">Press any key or click to stop the alarm.</span></div>
   </section>
+
+  <a class="built" id="built-with-tokk" href="https://github.com/subniin/tokk/blob/main/apps/click-talk/src/main.ts#L38-L73" target="_blank" rel="noopener">Built with Tokk · 29 lines</a>
 
   <div class="overlay" id="mic" hidden>
     <div class="dialog" role="alertdialog" aria-labelledby="mic-title" aria-describedby="mic-body">

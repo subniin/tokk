@@ -42,6 +42,7 @@ Each task has a spec folder with three files: requirements, design and tasks. Th
 | `.kiro/specs/task-34-click-talk/` | Task 34, Click Talk two-sound communication board (run A: rules and tests; run B: screen, speech, alarm and wiring) |
 | `.kiro/specs/task-35-site/` | Task 35, the new site page (run A: build, page and demo box layout; run B: demo box behaviour) |
 | `.kiro/specs/task-36-replace-apps/` | Task 36, remove the first two apps (Hands-Free, Knock Once for Yes) and update the documents |
+| `.kiro/specs/task-38-under-the-hood/` | Task 38, `ears.setDebug(on)`, the Under the hood toggle and the Built with Tokk link in both apps |
 | `.kiro/specs/_new-app/` | Template: fill one table, Kiro writes the spec |
 
 ## Hooks
