@@ -6,9 +6,10 @@
 // responsible for the contrast of its own colours (text 4.5 to 1 against --tokk-bg, graphics 3 to 1).
 
 import {
-  WEB_TEACH_FOCUS_OUTLINE_PX, WEB_TEACH_FONT_SIZE_PX, WEB_TEACH_RADIUS_PX, WEB_TEACH_THUMBNAIL_HEIGHT_PX, WEB_TEACH_THUMBNAIL_WIDTH_PX,
-  WEB_TEACH_WIDTH_PX, WEB_TEACH_Z_INDEX,
+  WEB_TEACH_FOCUS_OUTLINE_PX, WEB_TEACH_FONT_SIZE_MAX_PX, WEB_TEACH_FONT_SIZE_PX, WEB_TEACH_RADIUS_PX, WEB_TEACH_THUMBNAIL_HEIGHT_PX,
+  WEB_TEACH_THUMBNAIL_WIDTH_PX, WEB_TEACH_WIDTH_MAX_PX, WEB_TEACH_WIDTH_PX, WEB_TEACH_Z_INDEX,
 } from '../constants';
+import { fluidPx } from '../fluid';
 import { OVERLAY_COLOURS as C } from '../overlay/theme';
 
 const FG = `var(--tokk-fg, ${C.text})`;
@@ -16,10 +17,10 @@ const RADIUS = `var(--tokk-radius, ${WEB_TEACH_RADIUS_PX}px)`;
 
 export const TEACH_DIALOG_STYLE = `
 :host { all: initial; display: block; position: fixed; z-index: ${WEB_TEACH_Z_INDEX};
-  font-family: var(--tokk-font, system-ui, sans-serif); font-size: ${WEB_TEACH_FONT_SIZE_PX}px; line-height: 1.4; font-weight: 400;
+  font-family: var(--tokk-font, system-ui, sans-serif); font-size: ${fluidPx(WEB_TEACH_FONT_SIZE_PX, WEB_TEACH_FONT_SIZE_MAX_PX)}; line-height: 1.4; font-weight: 400;
   color: ${FG}; text-align: left; }
 * { box-sizing: border-box; transition: none; animation: none; }
-dialog { width: min(${WEB_TEACH_WIDTH_PX}px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; padding: 16px;
+dialog { width: min(${fluidPx(WEB_TEACH_WIDTH_PX, WEB_TEACH_WIDTH_MAX_PX)}, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; padding: 16px;
   background: var(--tokk-bg, ${C.panelBackground}); color: ${FG}; border: 1px solid ${C.backgroundMark}; border-radius: ${RADIUS}; }
 dialog::backdrop { background: rgba(0, 0, 0, 0.6); }
 h2 { margin: 0 0 8px; font-size: 1.25em; font-weight: 700; }

@@ -6,19 +6,26 @@ export const WEB_ENVELOPE_RESOLUTION_MS = 10;   // length of one envelope bin
 export const WEB_KEYS_SAMPLE_RATE_HZ = 16000;   // engine rate of source 'keys' when no model gives one (the lowest allowed rate)
 export const WEB_KEYS_MAX_CATCHUP_MS = 5000;    // longest stretch of silence sent at once after a late timer (a sleeping page)
 
-// Debug overlay (Task 15).
+// A size that grows with the window: it is never smaller than its minimum and reaches its maximum in a window of this width.
+export const WEB_FLUID_REFERENCE_WIDTH_PX = 1920;          // the window width at which a fluid size reaches its maximum
+
+// Debug overlay (Task 15). The plain constants are the minimum (a small screen), the ones ending in _MAX_PX the value on a large screen.
 export const WEB_OVERLAY_WINDOW_MS = 5000;                // length of the rolling waveform
 export const WEB_OVERLAY_MAX_ROWS = 20;                   // a count of rows, not a time
 export const WEB_OVERLAY_REDRAW_REDUCED_MOTION_MS = 1000; // longest time between two redraws with reduced motion
-export const WEB_OVERLAY_WIDTH_PX = 360;
+export const WEB_OVERLAY_WIDTH_PX = 360;                  // the width on a small screen (the minimum)
+export const WEB_OVERLAY_WIDTH_MAX_PX = 560;              // the width on a large screen
 export const WEB_OVERLAY_WAVEFORM_HEIGHT_PX = 80;
+export const WEB_OVERLAY_WAVEFORM_HEIGHT_MAX_PX = 120;
 export const WEB_OVERLAY_Z_INDEX = 2147483647;            // largest 32-bit signed integer, no unit
 export const WEB_OVERLAY_TIME_DECIMALS = 2;               // decimals of a time in s
 export const WEB_OVERLAY_CONFIDENCE_DECIMALS = 2;
 export const WEB_OVERLAY_DISTANCE_DECIMALS = 3;
 export const WEB_OVERLAY_MARGIN_PX = 12;                  // distance from the viewport corner
-export const WEB_OVERLAY_ROWS_MAX_HEIGHT_PX = 168;        // the row list scrolls above this height
+export const WEB_OVERLAY_ROWS_MAX_HEIGHT_PX = 168;        // the row list scrolls above this height (small screen)
+export const WEB_OVERLAY_ROWS_MAX_HEIGHT_MAX_PX = 280;    // the same on a large screen
 export const WEB_OVERLAY_FONT_SIZE_PX = 12;
+export const WEB_OVERLAY_FONT_SIZE_MAX_PX = 20;
 export const WEB_OVERLAY_MARK_MIN_WIDTH_PX = 2;           // a mark is never narrower than this
 export const WEB_OVERLAY_LOW_RATE_HZ = 16000;                 // input rate at which the high-frequency features are empty
 
@@ -33,7 +40,9 @@ export const WEB_TEACH_THUMBNAIL_HEIGHT_PX = 32;
 export const WEB_TEACH_FILE_NAME = 'teach.wav';                // file part of the ids of in-app examples
 export const WEB_TEACH_Z_INDEX = 2147483647;                   // largest 32-bit signed integer, no unit
 export const WEB_TEACH_FONT_SIZE_PX = 16;
+export const WEB_TEACH_FONT_SIZE_MAX_PX = 20;               // the font size on a large screen
 export const WEB_TEACH_WIDTH_PX = 480;
+export const WEB_TEACH_WIDTH_MAX_PX = 600;                   // the width on a large screen
 export const WEB_TEACH_TIME_DECIMALS = 2;                      // decimals of a time in s
 export const WEB_TEACH_FOCUS_OUTLINE_PX = 2;
 export const WEB_TEACH_RADIUS_PX = 4;                          // corner radius of the dialog and its buttons (Task 20)

@@ -27,7 +27,6 @@ const WIDE_WIDTH_PX = 1600;
 const WIDE_HEIGHT_PX = 900;
 const HUD_WIDTH_PX = 1024;
 const HUD_HEIGHT_PX = 768;
-const CANDLE_WIDTH_PX = 26;                       // apps/shoo/src/style.css .candles svg
 const CANDLE_GAP_PX = 8;
 const SCREENSHOT_WIDTH_PX = 1000;
 const SCREENSHOT_HEIGHT_PX = 760;
@@ -534,7 +533,9 @@ test.describe('playing with keys', () => {
       });
       expect(outside, 'HUD boxes outside the window').toEqual([]);
       const candles = await page.locator('#candles').boundingBox();
-      const own = lives * CANDLE_WIDTH_PX + (lives - 1) * CANDLE_GAP_PX;
+      // The candle grows with the window (apps/shoo/src/style.css .candles svg), so its width is read from the page.
+      const candleWidthPx = (await page.locator('#candles svg').first().boundingBox())?.width ?? 0;
+      const own = lives * candleWidthPx + (lives - 1) * CANDLE_GAP_PX;
       if (width > NARROW_WIDTH_PX || lives <= 3) expect(candles?.width ?? 0, 'the candles box is as wide as its candles').toBeLessThanOrEqual(own + 1);
       await context.close();
     });

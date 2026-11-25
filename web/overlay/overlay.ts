@@ -4,9 +4,11 @@
 import type { SegmentReport } from '../../core/engine';
 import type { MatchEvent, SoundModel } from '../../core/types';
 import {
-  WEB_OVERLAY_FONT_SIZE_PX, WEB_OVERLAY_MARGIN_PX, WEB_OVERLAY_MAX_ROWS, WEB_OVERLAY_ROWS_MAX_HEIGHT_PX,
-  WEB_OVERLAY_WAVEFORM_HEIGHT_PX, WEB_OVERLAY_WIDTH_PX, WEB_OVERLAY_Z_INDEX,
+  WEB_OVERLAY_FONT_SIZE_MAX_PX, WEB_OVERLAY_FONT_SIZE_PX, WEB_OVERLAY_MARGIN_PX, WEB_OVERLAY_MAX_ROWS, WEB_OVERLAY_ROWS_MAX_HEIGHT_MAX_PX,
+  WEB_OVERLAY_ROWS_MAX_HEIGHT_PX, WEB_OVERLAY_WAVEFORM_HEIGHT_MAX_PX, WEB_OVERLAY_WAVEFORM_HEIGHT_PX, WEB_OVERLAY_WIDTH_MAX_PX,
+  WEB_OVERLAY_WIDTH_PX, WEB_OVERLAY_Z_INDEX,
 } from '../constants';
+import { fluidPx } from '../fluid';
 import type { WorkerToMain } from '../protocol';
 import { drawWaveform } from './draw';
 import type { DrawColours } from './draw';
@@ -34,8 +36,8 @@ const DEFAULT_PIXEL_RATIO = 1;
 
 const STYLE = `
 :host { all: initial; display: block; position: fixed; right: ${WEB_OVERLAY_MARGIN_PX}px; bottom: ${WEB_OVERLAY_MARGIN_PX}px;
-  z-index: ${WEB_OVERLAY_Z_INDEX}; width: min(${WEB_OVERLAY_WIDTH_PX}px, calc(100vw - ${2 * WEB_OVERLAY_MARGIN_PX}px));
-  font-family: system-ui, sans-serif; font-size: ${WEB_OVERLAY_FONT_SIZE_PX}px; line-height: 1.4; font-weight: 400;
+  z-index: ${WEB_OVERLAY_Z_INDEX}; width: min(${fluidPx(WEB_OVERLAY_WIDTH_PX, WEB_OVERLAY_WIDTH_MAX_PX)}, calc(100vw - ${2 * WEB_OVERLAY_MARGIN_PX}px));
+  font-family: system-ui, sans-serif; font-size: ${fluidPx(WEB_OVERLAY_FONT_SIZE_PX, WEB_OVERLAY_FONT_SIZE_MAX_PX)}; line-height: 1.4; font-weight: 400;
   color: ${C.text}; text-align: left; }
 * { box-sizing: border-box; transition: none; animation: none; }
 .panel { background: ${C.panelBackground}; border: 1px solid ${C.baseline}; border-radius: 4px; overflow: hidden; }
@@ -46,8 +48,8 @@ button { font: inherit; color: inherit; background: transparent; border: 1px sol
 button:focus-visible, .rows:focus-visible { outline: 2px solid ${C.focusOutline}; outline-offset: 2px; }
 .warning { margin: 0; padding: 4px 8px; background: ${C.warningBackground}; color: ${C.warningText}; }
 .body[hidden] { display: none; }
-canvas { display: block; width: ${WEB_OVERLAY_WIDTH_PX}px; max-width: 100%; height: ${WEB_OVERLAY_WAVEFORM_HEIGHT_PX}px; background: ${C.canvasBackground}; }
-.rows { list-style: none; margin: 0; padding: 0; max-height: ${WEB_OVERLAY_ROWS_MAX_HEIGHT_PX}px; overflow-y: auto; }
+canvas { display: block; width: 100%; height: ${fluidPx(WEB_OVERLAY_WAVEFORM_HEIGHT_PX, WEB_OVERLAY_WAVEFORM_HEIGHT_MAX_PX)}; background: ${C.canvasBackground}; }
+.rows { list-style: none; margin: 0; padding: 0; max-height: ${fluidPx(WEB_OVERLAY_ROWS_MAX_HEIGHT_PX, WEB_OVERLAY_ROWS_MAX_HEIGHT_MAX_PX)}; overflow-y: auto; }
 .row { padding: 2px 8px; border-top: 1px solid ${C.headerBackground}; white-space: pre-wrap; overflow-wrap: anywhere; font-weight: 400; }
 .row.match { font-weight: 700; }
 `;
@@ -118,10 +120,20 @@ export function mountOverlay(o: { sounds: SoundModel; sampleRate: number }): Ove
 
   const pixelRatio = (): number => (typeof window.devicePixelRatio === 'number' && window.devicePixelRatio > 0 ? window.devicePixelRatio : DEFAULT_PIXEL_RATIO);
 
+  // The canvas takes its CSS size from the panel (it grows on a large screen), so the bitmap follows the measured size and the
+  // device pixel ratio. Before the first layout (or when the body is hidden) the minimum size is used.
+  let cssWidthPx = WEB_OVERLAY_WIDTH_PX;
+  let cssHeightPx = WEB_OVERLAY_WAVEFORM_HEIGHT_PX;
+  let resizeObserver: ResizeObserver | null = null;
+
   const setupCanvas = (): void => {
     const dpr = pixelRatio();
-    canvas.width = Math.round(WEB_OVERLAY_WIDTH_PX * dpr);
-    canvas.height = Math.round(WEB_OVERLAY_WAVEFORM_HEIGHT_PX * dpr);
+    if (canvas.clientWidth > 0 && canvas.clientHeight > 0) {
+      cssWidthPx = canvas.clientWidth;
+      cssHeightPx = canvas.clientHeight;
+    }
+    canvas.width = Math.round(cssWidthPx * dpr);
+    canvas.height = Math.round(cssHeightPx * dpr);
     ctx = canvas.getContext('2d');
     ctx?.setTransform(dpr, 0, 0, dpr, 0, 0);
   };
@@ -138,7 +150,7 @@ export function mountOverlay(o: { sounds: SoundModel; sampleRate: number }): Ove
     if (destroyed || collapsed || ctx === null) return;
     dirty = false;
     lastDrawMs = performance.now();   // schedules the next redraw only, never a shown time
-    drawWaveform(ctx, model.view(), colours, WEB_OVERLAY_WIDTH_PX, WEB_OVERLAY_WAVEFORM_HEIGHT_PX);
+    drawWaveform(ctx, model.view(), colours, cssWidthPx, cssHeightPx);
   };
 
   const schedule = (): void => {
@@ -177,7 +189,19 @@ export function mountOverlay(o: { sounds: SoundModel; sampleRate: number }): Ove
 
   const attach = (): void => {
     waitingForBody = false;
-    if (!destroyed) document.body.append(host);
+    if (destroyed) return;
+    document.body.append(host);
+    setupCanvas();   // now the canvas has a layout size
+    markDirty();
+    if (typeof ResizeObserver === 'function') {
+      resizeObserver = new ResizeObserver(() => {
+        if (destroyed || collapsed || canvas.clientWidth === 0) return;
+        if (canvas.clientWidth === cssWidthPx && canvas.clientHeight === cssHeightPx) return;
+        setupCanvas();
+        markDirty();
+      });
+      resizeObserver.observe(canvas);
+    }
   };
   if (document.body) attach();
   else {
@@ -225,6 +249,7 @@ export function mountOverlay(o: { sounds: SoundModel; sampleRate: number }): Ove
       if (destroyed) return;
       destroyed = true;
       cancelSchedule();
+      resizeObserver?.disconnect();
       mql?.removeEventListener('change', onMotionChange);
       button.removeEventListener('click', toggle);
       if (waitingForBody) document.removeEventListener('DOMContentLoaded', attach);
