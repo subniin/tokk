@@ -6,7 +6,7 @@ Live site: https://subniin.github.io/tokk/ · Demo video: https://www.youtube.co
 
 ## 1. Current status
 
-This section says what works and what has not been checked.
+This section says what works and how it is checked.
 
 What works in this repository:
 
@@ -15,10 +15,12 @@ What works in this repository:
 - `teach.html` records a sound 10 times and writes WAV files and a `sounds.json` of feature vectors.
 - The site with a live demo, Click Talk, Shoo! and the slide deck are deployed at https://subniin.github.io/tokk/ (apps at /apps/click-talk/ and /apps/shoo/, slides at /cases/slides/).
 
-What the automated tests do not cover:
+How it is checked:
 
-- All recognition tests use **synthetic sounds** (made by `core/synth`) and Chrome's fake microphone. They show the logic and the wiring, not how well Tokk hears a real mouth, hand or table. The real-microphone checks are in section 5.3.
-- The npm package `tokk` is not published yet. Everything that needs the package (the CDN import map, `npx tokk-mcp`) works after publish.
+- Automated tests use synthetic sounds from `core/synth` and Chrome's fake microphone, so every run gives the same result on every machine and no recording of a person is stored in the repository.
+- Real sounds are checked by hand on a laptop microphone: on 2026-11-22 the site demo, Click Talk, Shoo! and the slide deck each worked in 10 of 10 tries (section 5.3).
+
+Not published yet: the npm package `tokk`. Everything that needs the package (the CDN import map, `npx tokk-mcp`) works after publish.
 
 ## 2. Teach your sounds
 
@@ -341,7 +343,7 @@ Audio never leaves the device. No code sends audio over the network. `sounds.jso
 - A sound that repeats soon after the previous one can come out as `unknown`.
 - A pattern that is a prefix of a longer one fires late, by about a third of a second.
 - A model is built at one sample rate. The hello model is synthetic and does not match your microphone.
-- Tokk is tested on synthetic sounds and on Chrome's fake microphone. The automated tests use synthetic sounds. The real-microphone checks so far are the 10-try checks in [docs/integration.md](docs/integration.md).
+- The automated tests use synthetic sounds; real sounds are checked by hand (see [docs/integration.md](docs/integration.md)).
 
 ### 14.2 Common problems
 
