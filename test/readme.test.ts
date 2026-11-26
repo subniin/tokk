@@ -9,7 +9,7 @@ import { REPO_ROOT } from './web/paths';
 const README_PATH = join(REPO_ROOT, 'README.md');
 const INTEGRATION_PATH = join(REPO_ROOT, 'docs', 'integration.md');
 const SITE_URL = 'https://subniin.github.io/tokk/';
-const DEMO_LINE = 'Demo video: coming with the submission.';
+const DEMO_LINE = 'Demo video: https://www.youtube.com/watch?v=5A0WwQQNWWw';
 const CASES: { group: string; integrationMarker: string }[] = [
   { group: 'apps/click-talk', integrationMarker: 'Click Talk' },
   { group: 'apps/shoo', integrationMarker: 'Shoo!' },
@@ -172,7 +172,7 @@ describe('README.md (Task 27)', () => {
     const text = readme();
     const prose = withoutFences(text);
     expect(text).toMatch(/^## \d+\. Current status$/m);
-    for (const w of ['synthetic', "Chrome's fake microphone", 'real-microphone', 'demo video', 'npm package', 'pending']) {
+    for (const w of ['synthetic', "Chrome's fake microphone", 'real-microphone', 'Demo video', 'npm package']) {
       expect(text, w).toContain(w);
     }
     expect(text).toContain(DEMO_LINE);

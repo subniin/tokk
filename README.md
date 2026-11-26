@@ -2,6 +2,8 @@
 
 Tokk is a sound-event engine that lets an app react to short sounds like a clap, a knock or a whistle, in the browser and in Node. It is made of a pure TypeScript core (segmenter, features, k-nearest-neighbour classifier, pattern matcher), a browser layer (microphone, AudioWorklet, Worker, teach dialog, debug overlay), a Node layer (teaching from WAV files, `expectEvents`), an MCP server, and a Kiro power with two agents. It has no runtime dependencies.
 
+Live site: https://subniin.github.io/tokk/ · Demo video: https://www.youtube.com/watch?v=5A0WwQQNWWw
+
 ## 1. Current status
 
 This section says what works and what has not been checked.
@@ -13,10 +15,9 @@ What works in this repository:
 - `teach.html` records a sound 10 times and writes WAV files and a `sounds.json` of feature vectors.
 - The site with a live demo, Click Talk, Shoo! and the slide deck are deployed at https://subniin.github.io/tokk/ (apps at /apps/click-talk/ and /apps/shoo/, slides at /cases/slides/).
 
-What has not been checked:
+What the automated tests do not cover:
 
-- All recognition tests use **synthetic sounds** (made by `core/synth`) and Chrome's fake microphone. They show the logic and the wiring, not how well Tokk hears a real mouth, hand or table.
-- The demo video is pending.
+- All recognition tests use **synthetic sounds** (made by `core/synth`) and Chrome's fake microphone. They show the logic and the wiring, not how well Tokk hears a real mouth, hand or table. The real-microphone checks are in section 5.3.
 - The npm package `tokk` is not published yet. Everything that needs the package (the CDN import map, `npx tokk-mcp`) works after publish.
 
 ## 2. Teach your sounds
@@ -104,7 +105,7 @@ Teach option: `ears.teach('background', { ui: true, backgroundMs: 30000 })` show
 
 ## 4. Demo video
 
-Demo video: coming with the submission.
+Demo video: https://www.youtube.com/watch?v=5A0WwQQNWWw
 
 ## 5. Two apps and a slides case
 
@@ -250,7 +251,7 @@ The browser tests need Chromium once (`npx playwright install chromium`) and the
 
 ## 8. Make a new app from this template
 
-1. Press **Use this template** on GitHub. The repository is meant to be a template. The template setting is pending until the repository is pushed.
+1. Press **Use this template** on GitHub. The repository is meant to be a template.
 2. Open the new repository in Kiro. Keep `.kiro/` and `powers/tokk/`.
 3. Install the power: open the Powers panel, choose Add Custom Power, then Import from folder (`powers/tokk`).
 4. Teach the sounds with `teach.html`, or give a folder of WAV files of each sound.

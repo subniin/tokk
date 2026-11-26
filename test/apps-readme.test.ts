@@ -57,7 +57,6 @@ describe('apps/README.md and the README example (Task 21)', () => {
     expect(readme).toContain('not counted');
     const measured = countWiring(hello).lines;
     expect(readme).toContain(`${measured} lines of Tokk code`);
-    expect(readme).toContain('pending');
   });
 
   it('T1: tsconfig.web.json includes apps/*/src and maps tokk to web/index.ts', () => {
