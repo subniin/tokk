@@ -26,7 +26,7 @@ Not published yet: the npm package `tokk`. Everything that needs the package (th
 
 ### 2.1 The teach screen
 
-The picture shows the debug overlay (`debug: true`) while the hello example hears synthetic sounds: the four sounds `low`, `mid`, `high` and `ring`, the matched patterns, the confidence and the distance to the nearest taught example. A GIF of the teach dialog replaces it later.
+The picture shows the debug overlay (`debug: true`) while the hello example hears synthetic sounds: the four sounds `low`, `mid`, `high` and `ring`, the matched patterns, the confidence and the distance to the nearest taught example.
 
 ![The Tokk debug overlay listing four recognised sounds](docs/images/overlay.png)
 
@@ -163,7 +163,7 @@ Conditions, from [docs/integration.md](docs/integration.md):
 | `cases/slides` | 17 | `npm run count:wiring`. The agent wrote 12 non-blank lines, the caption added the rest |
 | `examples/hello` | 7 | `npm run count:wiring` |
 
-The real-microphone checks (site demo, Click Talk, Shoo!, slide deck) passed on 2026-11-22: 10 of 10 tries each worked on a laptop microphone. No times or counts beyond that were recorded. The method and the target of each check are in [docs/integration.md](docs/integration.md).
+The real-microphone checks (site demo, Click Talk, Shoo!, slide deck) passed on 2026-11-22: 10 of 10 tries each worked on a laptop microphone. The method and the target of each check are in [docs/integration.md](docs/integration.md).
 
 ### 5.4 Credit
 

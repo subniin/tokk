@@ -6,7 +6,9 @@ import { collectGroups } from '../scripts/count-wiring';
 import { REPO_ROOT } from './web/paths';
 
 const DOC_PATH = join(REPO_ROOT, 'docs', 'integration.md');
-const CHECK_RESULT = 'passed on 2026-11-22: 10 of 10 tries worked on a real laptop microphone (no timing recorded)';
+const CHECK_RESULT = 'passed on 2026-11-22: 10 of 10 tries worked on a real laptop microphone';
+const CHECK_RESULT_TIME_NOT_MEASURED = `${CHECK_RESULT} (time not measured)`;
+const TIMED_CHECKS = ['Teaching a new sound', 'First run setup'];
 const MIN_HUMAN_CHECK_ROWS = 6;
 const EARLIER_APPS_HEADING = 'Earlier apps (replaced on 2026-11-22)';
 const HUMAN_CHECKS = ['Teaching a new sound', 'First run setup', 'Wrong choices while talking', 'Shoo! to dawn', 'Sound mix-ups', 'Double clap'];
@@ -78,7 +80,7 @@ describe('docs/integration.md', () => {
   it('I4: every human check says it passed, 10 of 10 tries', () => {
     const rows = tableRows(section(doc(), 'Human checks with a real microphone'));
     expect(rows.length).toBeGreaterThanOrEqual(MIN_HUMAN_CHECK_ROWS);
-    for (const r of rows) expect(r[r.length - 1]).toBe(CHECK_RESULT);
+    for (const r of rows) expect(r[r.length - 1]).toBe(TIMED_CHECKS.includes(r[0]) ? CHECK_RESULT_TIME_NOT_MEASURED : CHECK_RESULT);
   });
 
   it('I4: the Double clap row says how to measure it and keeps the target', () => {

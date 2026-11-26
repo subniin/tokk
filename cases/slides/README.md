@@ -35,7 +35,7 @@ What they are for: `sounds.json` is the model for the tests, `sounds/clap/clap-0
 
 The recipe, in words (the constants are in `test/helpers/slides-claps.ts`): each clap is an impact of the class `mid` of `core/synth` (a burst centred near 1200 Hz that decays within tens of milliseconds), at -6 dB, over a white-noise bed at -75 dBFS, with its own seed. The sample rate is 48000 Hz. A quiet lead of 1200 ms comes before the first clap, so the noise floor can calibrate. The ten teaching claps start 800 ms apart. The claps of a pattern start 250 ms apart, which is inside the gap of consecutive sounds.
 
-No claim about how well Tokk recognises a real clap is made by these files. That is not measured here.
+These files test the wiring. Real claps were checked by hand: see the Double clap row in [docs/integration.md](../../docs/integration.md).
 
 ## When `clap clap` fires
 

@@ -1,6 +1,6 @@
 # Integration measurements
 
-Measured values for the apps that use Tokk. A value that has not been measured says "not measured yet". The human checks with a real microphone have no measured times or counts; they record only that every try worked. Wiring line counts come from `npm run count:wiring`.
+Measured values for the apps that use Tokk. A value that has not been measured says "not measured yet". Each human check with a real microphone records whether each of 10 tries worked. Wiring line counts come from `npm run count:wiring`.
 
 ## How the numbers were measured
 
@@ -12,7 +12,7 @@ Measured values for the apps that use Tokk. A value that has not been measured s
 
 ## Cases
 
-| Target | Sounds taught | Wiring lines | Time | Kiro credits | What Kiro did | What the orchestrator corrected |
+| Target | Sounds taught | Wiring lines | Time | Kiro credits | What Kiro did | What the operator corrected |
 |---|---|---|---|---|---|---|
 | Shoo! (task 33), run A commit 59dff36 (rules), run B this task | click, clap, knock, pop and `background`. The sounds in `apps/shoo/sounds/` and the browser fixtures are synthetic; the player teaches real ones on the first run. | 27 lines (`count:wiring`; 25 before Task 38 added the `setDebug` call) | Start 2026-11-22 03:38:29 (run A start). End 2026-11-22 06:13:30 (fix commit c8ff1a3). Duration without task 32b: 2 h 10 min (2 h 35 min 1 s from start to end, minus 25 min 11 s of task 32b). Run A 03:38:29 to 03:48:46, run B first attempt from 03:49:49 (stopped without changes), run B 04:17:39 to 05:09:01 (commit f14cf7e), operator check in the browser 05:09 to 05:15, fix run 05:15:16 to 06:13:30. | About 12.7 (run A) + about 2.7 (run B first attempt) + about 43.4 (run B) + about 5.1 (fix run) = about 63.9 without task 32b. | Run A wrote the spec and the pure rules with their tests. Run B wrote the screen, the sound effects, the wiring (the room sound of 30 s through `backgroundMs`, the sound of each new monster, the microphone card with a keys fallback) and the browser tests. | None to the code; the operator only wrote prompts. The first run B attempt stopped without changes because teach could not record 30 s of background; task 32b (`backgroundMs`) fixed that. In the browser the operator found the HUD candles box stretched to 453 px and a test that pressed a key repeatedly; both were fixed in the fix run (commit c8ff1a3). Real-microphone checks: passed on 2026-11-22, 10 of 10 tries worked (see Human checks with a real microphone). |
 | Click Talk (task 34), run A commit 5632a2b (rules), run B this task | click, pop and `background`. The sounds in `apps/click-talk/sounds/` and the browser fixtures are synthetic; the caregiver teaches real ones on the first run. | 29 lines (`count:wiring`; 27 before Task 38 added the `setDebug` call) | Start 2026-11-22 06:19:48 (run A start). End 2026-11-22 07:52:12 (fix commit 81bc14f). Duration: 1 h 32 min (06:19:48 to 07:52:12, 1 h 32 min 24 s). Run A 06:19:48 to 06:27:46 (commit 5632a2b), run B 06:28:34 to 07:21:51 (commit 76f3ec8), operator check in the browser 07:22 to 07:27, fix run 07:27:13 to 07:52:12 (commit 81bc14f). | About 12.0 (run A) + about 41.6 (run B) + about 2.4 (fix run) = about 56.0 in total. No template work in this task. | Run A wrote the spec and the pure rules with their tests. Run B wrote the screen from the approved mockup, the speech, the generated alarm, the caregiver screen, the wiring (`settleBurst` for two pops then silence, the one-sound scan timer, the microphone card with a keys fallback) and the browser tests. | None to the code; the operator only wrote prompts. Run B also fixed run A's Space key in one-sound mode (Space is click in both modes), as the operator asked. In the browser the operator found that a returning user's board is deaf until the first click, with no sign of it; the fix run (commit 81bc14f) added the "Not listening yet" status and a banner until the first click or key. Real-microphone checks: passed on 2026-11-22, 10 of 10 tries worked (see Human checks with a real microphone). |
@@ -22,7 +22,7 @@ Measured values for the apps that use Tokk. A value that has not been measured s
 
 The operator redesigned both apps, so Click Talk and Shoo! replaced them on 2026-11-22. The folders `apps/hands-free` and `apps/knock-once` are removed and these rows stay as history, with the wiring lines counted at the time.
 
-| Target | Sounds taught | Wiring lines | Time | Kiro credits | What Kiro did | What the orchestrator corrected |
+| Target | Sounds taught | Wiring lines | Time | Kiro credits | What Kiro did | What the operator corrected |
 |---|---|---|---|---|---|---|
 | Hands-Free (task 22), commit e7d5083 | tongue click (`click`), hum and `background` | 17 lines | 2026-11-20 17:50:21 to 19:14:02, 1 h 24 min | about 135 (spec 24, implementation 24 + 87) | Wrote the spec, then the app. A model throttle error stopped the first implementation run, and a second run on another model resumed the same session. | Told Kiro to fix the template's sequential `teach()` handling instead of retrying on the "already open" error. Spotted that the "Heard" line showed "(ignored: listening is off)" under the ON banner, fixed in task 23. |
 | Knock Once for Yes (task 23), commit 2e29c2f | knock | 19 lines | 2026-11-20 19:16:00 to 21:13:10, 1 h 57 min | about 84 (spec 15, implementation 69) | Wrote the spec, then the app. Found and fixed by itself: the state line kept "Listening is paused" after a sound effect (seen in its own screenshot, failing test first), and the ending text was clipped at 320 px. | None. |
@@ -48,19 +48,19 @@ Not counted in the apps. The apps needed it. Task 32b was needed by Shoo! and is
 | 21 | App bundles, static site, wiring count | 2026-11-20 16:52:04 to 17:48:08, 56 min | about 49 | 3a32cf3 |
 | 32b | Template option ackgroundMs for the Shoo! build | 2026-11-22 03:51:22 to 04:16:33, 25 min 11 s | about 8.1 | 8328b44 |
 
-When the hello tests conflicted in task 21, the orchestrator chose minimal named edits (H3, H4, D1).
+When the hello tests conflicted in task 21, the operator chose minimal named edits (H3, H4, D1).
 
 ## Human checks with a real microphone
 
 | Check | App | What to measure | Target | Value |
 |---|---|---|---|---|
-| Teaching a new sound | any | Time from the start of recording to a working pattern | under 1 minute | passed on 2026-11-22: 10 of 10 tries worked on a real laptop microphone (no timing recorded) |
-| First run setup | Click Talk | Setup (teaching the click, the pop and the room) and one phrase spoken with real sounds, timed by the person | under 3 minutes | passed on 2026-11-22: 10 of 10 tries worked on a real laptop microphone (no timing recorded) |
-| Wrong choices while talking | Click Talk | Count wrong choices during 10 minutes of talking near the laptop | at most 1 wrong choice | passed on 2026-11-22: 10 of 10 tries worked on a real laptop microphone (no timing recorded) |
-| Shoo! to dawn | Shoo! | Play all five waves with real sounds | dawn reached | passed on 2026-11-22: 10 of 10 tries worked on a real laptop microphone (no timing recorded) |
-| Sound mix-ups | Shoo! | 20 of each sound in wave 4, and count the hits on the right monster | at least 18 of 20 hit the right monster | passed on 2026-11-22: 10 of 10 tries worked on a real laptop microphone (no timing recorded) |
-| Double clap | third case | Teach the clap once in the deck, then clap twice 10 times and three times 10 times, and count the times the slide moved as the table says | at least 9 of 10 for each pattern | passed on 2026-11-22: 10 of 10 tries worked on a real laptop microphone (no timing recorded) |
+| Teaching a new sound | any | Time from the start of recording to a working pattern | under 1 minute | passed on 2026-11-22: 10 of 10 tries worked on a real laptop microphone (time not measured) |
+| First run setup | Click Talk | Setup (teaching the click, the pop and the room) and one phrase spoken with real sounds, timed by the person | under 3 minutes | passed on 2026-11-22: 10 of 10 tries worked on a real laptop microphone (time not measured) |
+| Wrong choices while talking | Click Talk | Count wrong choices during 10 minutes of talking near the laptop | at most 1 wrong choice | passed on 2026-11-22: 10 of 10 tries worked on a real laptop microphone |
+| Shoo! to dawn | Shoo! | Play all five waves with real sounds | dawn reached | passed on 2026-11-22: 10 of 10 tries worked on a real laptop microphone |
+| Sound mix-ups | Shoo! | 20 of each sound in wave 4, and count the hits on the right monster | at least 18 of 20 hit the right monster | passed on 2026-11-22: 10 of 10 tries worked on a real laptop microphone |
+| Double clap | third case | Teach the clap once in the deck, then clap twice 10 times and three times 10 times, and count the times the slide moved as the table says | at least 9 of 10 for each pattern | passed on 2026-11-22: 10 of 10 tries worked on a real laptop microphone |
 
 ## Synthetic sounds
 
-All recognition tests so far used synthetic sounds and a fake microphone. They show the logic and the wiring, not the recognition of a real mouth, hand or table.
+The automated tests use synthetic sounds and Chrome's fake microphone, so they give the same result on every machine. Real sounds are checked by hand, in the table above.
